@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>3mensio XML Parser</title>
+
+  <style>
+    body { font-family: Arial, Helvetica, sans-serif; }
+
+    #reportContainer {
+      margin-top: 12px;
+      float: left;
+      display: none;
+    }
+
+    #reportBlock {
+      background: #f6f8fa;
+      border: 1px solid #d0d7de;
+      border-radius: 6px;
+      padding: 12px;
+      white-space: pre-wrap;
+      font-family: Consolas, Menlo, Monaco, monospace;
+      font-size: 13px;
+      line-height: 1.4em;
+    }
+
+    #copyBtn {
+      float: right;
+      margin: 20px 10px 10px 10px;
+      padding: 6px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .header-row {
+      display: flex;
+      align-items: center;   /* vertical centering */
+      gap: 12px;             /* space between title and input */
+    }
+  </style>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const fileInput  = document.getElementById("file");
+      const headerEl   = document.getElementById("header");
+      const reportBlock = document.getElementById("reportBlock");
+      const copyBtn    = document.getElementById("copyBtn");
+      const reportContainer = document.getElementById("reportContainer");
+      let currentReportRaw = "";
+      let currentReportHtml = "";
+      let currentClipboardHtml = "";
+
+      const TEMPLATE_FILES = {
+        AorticValve: "templates/aortic.html",
+        MitralValve: "templates/mitral.html",
+        LAA: "templates/laa.html"
+      };
+      let templates = null;
+
+      function resolveTemplateUrl(path) {
+        return new URL(path, window.location.href).href;
+      }
+
+      function fetchTemplateText(url) {
+        return fetch(url, { cache: "no-cache" }).then(response => {
+          if (!response.ok) {
+            throw new Error(`Failed loading template: ${url}`);
+          }
+          return response.text();
+        });
+      }
+
+      function xhrTemplateText(url) {
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("GET", url, true);
+          xhr.onload = () => {
+            const isHttpSuccess = xhr.status >= 200 && xhr.status < 300;
+            const isFileSuccess = window.location.protocol === "file:" && xhr.status === 0 && xhr.responseText;
+            if (isHttpSuccess || isFileSuccess) {
+              resolve(xhr.responseText);
+              return;
+            }
+            reject(new Error(`Failed loading template: ${url}`));
+          };
+          xhr.onerror = () => reject(new Error(`Failed loading template: ${url}`));
+          xhr.send();
+        });
+      }
+
+      async function readTemplateFile(path) {
+        const url = resolveTemplateUrl(path);
+        try {
+          return await fetchTemplateText(url);
+        } catch (_) {
+          return xhrTemplateText(url);
+        }
+      }
+
+      async function loadTemplates() {
+        if (templates) return templates;
+
+        const entries = await Promise.all(
+          Object.entries(TEMPLATE_FILES).map(async ([key, path]) => {
+            const content = (await readTemplateFile(path)).replace(/\r\n/g, "\n").trim();
+            return [key, content];
+          })
+        );
+
+        templates = Object.fromEntries(entries);
+        return templates;
+      }
+
+      /* ---------- templates (Option B) ---------- */
+
+      /* ---------- utilities ---------- */
+
+      function clearOutput() {
+        headerEl.innerHTML = "";
+        reportBlock.innerHTML = "";
+        currentReportRaw = "";
+        currentReportHtml = "";
+        currentClipboardHtml = "";
+        copyBtn.removeAttribute("style");
+        copyBtn.textContent = "Copy";
+      }
+
+      async function copyReport() {
+        const html = currentClipboardHtml || currentReportHtml || reportBlock.innerHTML || "";
+        const plain = reportBlock.innerText || reportBlock.textContent || "";
+
+        try {
+          if (navigator.clipboard && window.ClipboardItem && navigator.clipboard.write) {
+            const item = new ClipboardItem({
+              "text/html": new Blob([html], { type: "text/html" }),
+              "text/plain": new Blob([plain], { type: "text/plain" })
+            });
+            await navigator.clipboard.write([item]);
+          } else if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(plain);
+          } else {
+            const temp = document.createElement("div");
+            temp.contentEditable = "true";
+            temp.style.position = "fixed";
+            temp.style.left = "-9999px";
+            temp.style.top = "0";
+            temp.innerHTML = html;
+            document.body.appendChild(temp);
+
+            const range = document.createRange();
+            range.selectNodeContents(temp);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+            document.execCommand("copy");
+            selection.removeAllRanges();
+            document.body.removeChild(temp);
+          }
+
+          copyBtn.textContent = "Copied";
+          copyBtn.style.color = "#999999";
+        } catch (_) {
+          try {
+            await navigator.clipboard.writeText(plain);
+            copyBtn.textContent = "Copied";
+            copyBtn.style.color = "#999999";
+          } catch (_) {
+            copyBtn.textContent = "Copy failed";
+            copyBtn.style.color = "#b42318";
+          }
+        }
+      }
+
+      function appendHeader(html) {
+        headerEl.insertAdjacentHTML("beforeend", html);
+      }
+
+      function setReport(text) {
+        // ensure trailing newline for nice copy/paste behavior
+        currentReportRaw = (text || "").replace(/\s+$/, "") + "\n";
+        currentReportHtml = currentReportRaw.replace(/<script[\s\S]*?<\/script>/gi, "");
+        currentClipboardHtml = currentReportHtml.replace(/\n/g, "<br>\n");
+        reportBlock.innerHTML = currentReportHtml;
+      }
+
+      function parseXml(xmlString) {
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(xmlString, "application/xml");
+        if (xmlDoc.querySelector("parsererror")) throw new Error("Invalid XML");
+        return xmlDoc;
+      }
+
+      function getText(xmlDoc, selector) {
+        const n = xmlDoc.querySelector(selector);
+        return n ? n.textContent.trim() : "";
+      }
+
+      function getMeasurement(xmlDoc, id, prefix) {
+        const node =
+          xmlDoc.querySelector(`Measurement[Id="${id}"][ReportId^="${prefix}"] > ReportableValue`)
+          || xmlDoc.querySelector(`Measurement[Id="${id}"] > ReportableValue`);
+        if (!node) return null;
+        const v = parseFloat(node.getAttribute("Value"));
+        return Number.isFinite(v) ? v : null;
+      }
+
+      function reportMatchesPrefix(measurementNode, prefix) {
+        if (!prefix) return true;
+        const reportId = measurementNode.getAttribute("ReportId") || "";
+        return !reportId || reportId.startsWith(prefix);
+      }
+
+      function getMeasurementByLabelParts(xmlDoc, requiredParts, wantMin, prefix) {
+        const parts = (requiredParts || []).map(p => String(p).toLowerCase());
+        const nodes = xmlDoc.querySelectorAll("Measurement");
+
+        for (const m of nodes) {
+          if (!reportMatchesPrefix(m, prefix)) continue;
+
+          const label = (m.getAttribute("Label") || "").toLowerCase();
+          if (!label) continue;
+          if (!parts.every(p => label.includes(p))) continue;
+
+          const hasMin = /\bmin\b/.test(label);
+          const hasMax = /\bmax\b/.test(label);
+          if (wantMin && !hasMin) continue;
+          if (!wantMin && !hasMax) continue;
+
+          const rv = m.querySelector("ReportableValue");
+          if (!rv) continue;
+          const v = parseFloat(rv.getAttribute("Value"));
+          if (Number.isFinite(v)) return v;
+        }
+
+        return null;
+      }
+
+      function getMeasurementAnyId(xmlDoc, ids, prefix) {
+        for (const id of ids || []) {
+          const v = getMeasurement(xmlDoc, id, prefix);
+          if (v != null) return v;
+        }
+        return null;
+      }
+
+      function vesselDiameter(xmlDoc, prefix, spec) {
+        const minById = getMeasurementAnyId(xmlDoc, spec.minIds || [], prefix);
+        const maxById = getMeasurementAnyId(xmlDoc, spec.maxIds || [], prefix);
+
+        let min = minById;
+        let max = maxById;
+
+        if (min == null || max == null) {
+          for (const parts of spec.labelMatchers || []) {
+            if (min == null) min = getMeasurementByLabelParts(xmlDoc, parts, true, prefix);
+            if (max == null) max = getMeasurementByLabelParts(xmlDoc, parts, false, prefix);
+            if (min != null && max != null) break;
+          }
+        }
+
+        return `${fmt(min)} x ${fmt(max)} mm`;
+      }
+
+      function fmt(v) {
+        return v == null ? "N/A" : v.toFixed(1);
+      }
+
+      function ellipsePerimeterFromDiameters(maxD, minD) {
+        if (maxD == null || minD == null) return null;
+        const a = maxD / 2;
+        const b = minD / 2;
+        const perimeter = Math.PI * (3 * (a + b) - Math.sqrt((3 * a + b) * (a + 3 * b)));
+        return Number.isFinite(perimeter) ? perimeter : null;
+      }
+
+      function extractAgatston(text) {
+        // matches "Agatston 498" or "Agatson 3075" etc.
+        const m = String(text || "").match(/\bagatst?on\b[\s:=\-]*([0-9,\s]+)/i);
+        return m ? m[1].replace(/[,\s]/g, "") : "";
+      }
+
+      function extractCoplanar(text) {
+        const m = String(text || "").match(/\b(?:LAO|RAO)\b[\s\S]*$/i);
+        return m ? m[0].trim() : "";
+      }
+
+      function detectWorkflow(xmlDoc) {
+        if (xmlDoc.querySelector("AorticValve")) return "AorticValve";
+        if (xmlDoc.querySelector("MitralValve")) return "MitralValve";
+        if (xmlDoc.querySelector("AtrialAppendage") || xmlDoc.querySelector('Measurement[ReportId^="LAA"]')) return "LAA";
+        return "Unknown";
+      }
+
+      /* ---------- template renderer ---------- */
+
+      function renderTemplate(template, ctx, xmlDoc, prefix) {
+        // Simple placeholders: {{agatston}}, {{coplanar}}, {{comments}}
+        // Measurement placeholders:
+        //   {{M:Id}} -> fmt(measurement)
+        //   {{X:IdMin,IdMax}} -> "fmt(min) x fmt(max)"
+        //   {{S:Id,scale}} -> fmt(measurement * scale)
+        return template.replace(/\{\{([^}]+)\}\}/g, (_, token) => {
+          const t = token.trim();
+
+          // simple tokens
+          if (t === "agatston") return ctx.agatston || "N/A";
+          if (t === "coplanar") return ctx.coplanar || "N/A";
+          if (t === "comments") return ctx.comments || "N/A";
+          if (Object.prototype.hasOwnProperty.call(ctx, t)) return ctx[t] || "N/A";
+
+          // typed tokens
+          // M:Id
+          if (t.startsWith("M:")) {
+            const id = t.slice(2).trim();
+            return fmt(getMeasurement(xmlDoc, id, prefix));
+          }
+
+          // X:IdMin,IdMax
+          if (t.startsWith("X:")) {
+            const parts = t.slice(2).split(",").map(s => s.trim()).filter(Boolean);
+            if (parts.length !== 2) return "N/A";
+            const a = fmt(getMeasurement(xmlDoc, parts[0], prefix));
+            const b = fmt(getMeasurement(xmlDoc, parts[1], prefix));
+            return `${a} x ${b}`;
+          }
+
+          // S:Id,scale
+          if (t.startsWith("S:")) {
+            const parts = t.slice(2).split(",").map(s => s.trim()).filter(Boolean);
+            if (parts.length !== 2) return "N/A";
+            const id = parts[0];
+            const scale = parseFloat(parts[1]);
+            const v = getMeasurement(xmlDoc, id, prefix);
+            if (v == null || !Number.isFinite(scale)) return "N/A";
+            return fmt(v * scale);
+          }
+
+          // unknown token -> leave as-is (or return N/A)
+          return "N/A";
+        });
+      }
+
+      function stripIliofemoralSection(reportText) {
+        return String(reportText || "").replace(
+          /\n\nIliofemoral arteries:[\s\S]*?\n\nIMPRESSION:/,
+          "\n\nIMPRESSION:"
+        );
+      }
+
+      /* ---------- workflow renderers ---------- */
+
+      function renderAortic(xmlDoc) {
+        const prefix = "AorticValve";
+        const comments = getText(xmlDoc, "Fields > Comments") || getText(xmlDoc, "Comments");
+        const ctx = {
+          comments,
+          agatston: extractAgatston(comments),
+          coplanar: extractCoplanar(comments),
+          r_common_iliac: vesselDiameter(xmlDoc, prefix, {
+            minIds: ["RightCommonIliacDiameterMin", "RightCommonIliacMin"],
+            maxIds: ["RightCommonIliacDiameterMax", "RightCommonIliacMax"],
+            labelMatchers: [["right", "common", "iliac"]]
+          }),
+          r_external_iliac: vesselDiameter(xmlDoc, prefix, {
+            minIds: ["RightExternalIliacDiameterMin", "RightExternalIliacMin"],
+            maxIds: ["RightExternalIliacDiameterMax", "RightExternalIliacMax"],
+            labelMatchers: [["right", "external", "iliac"]]
+          }),
+          r_common_femoral: vesselDiameter(xmlDoc, prefix, {
+            minIds: ["RightCommonFemoralDiameterMin", "RightFemoralDiameterMin", "RightCommonFemoralMin"],
+            maxIds: ["RightCommonFemoralDiameterMax", "RightFemoralDiameterMax", "RightCommonFemoralMax"],
+            labelMatchers: [["right", "common", "femoral"], ["right", "femoral"]]
+          }),
+          r_femoral_bifurcation: vesselDiameter(xmlDoc, prefix, {
+            minIds: ["RightFemoralBifurcationDiameterMin", "RightFemoralBifurcationMin"],
+            maxIds: ["RightFemoralBifurcationDiameterMax", "RightFemoralBifurcationMax"],
+            labelMatchers: [["right", "femoral", "bifurcation"]]
+          }),
+          l_common_iliac: vesselDiameter(xmlDoc, prefix, {
+            minIds: ["LeftCommonIliacDiameterMin", "LeftCommonIliacMin"],
+            maxIds: ["LeftCommonIliacDiameterMax", "LeftCommonIliacMax"],
+            labelMatchers: [["left", "common", "iliac"]]
+          }),
+          l_external_iliac: vesselDiameter(xmlDoc, prefix, {
+            minIds: ["LeftExternalIliacDiameterMin", "LeftExternalIliacMin"],
+            maxIds: ["LeftExternalIliacDiameterMax", "LeftExternalIliacMax"],
+            labelMatchers: [["left", "external", "iliac"]]
+          }),
+          l_common_femoral: vesselDiameter(xmlDoc, prefix, {
+            minIds: ["LeftCommonFemoralDiameterMin", "LeftFemoralDiameterMin", "LeftCommonFemoralMin"],
+            maxIds: ["LeftCommonFemoralDiameterMax", "LeftFemoralDiameterMax", "LeftCommonFemoralMax"],
+            labelMatchers: [["left", "common", "femoral"], ["left", "femoral"]]
+          }),
+          l_femoral_bifurcation: vesselDiameter(xmlDoc, prefix, {
+            minIds: ["LeftFemoralBifurcationDiameterMin", "LeftFemoralBifurcationMin"],
+            maxIds: ["LeftFemoralBifurcationDiameterMax", "LeftFemoralBifurcationMax"],
+            labelMatchers: [["left", "femoral", "bifurcation"]]
+          })
+        };
+        const iliofemoralValues = [
+          ctx.r_common_iliac,
+          ctx.r_external_iliac,
+          ctx.r_common_femoral,
+          ctx.r_femoral_bifurcation,
+          ctx.l_common_iliac,
+          ctx.l_external_iliac,
+          ctx.l_common_femoral,
+          ctx.l_femoral_bifurcation
+        ];
+        const hasAnyIliofemoralValue = iliofemoralValues.some(v => v !== "N/A x N/A mm");
+
+        let report = renderTemplate(templates.AorticValve, ctx, xmlDoc, prefix);
+        if (!hasAnyIliofemoralValue) {
+          report = stripIliofemoralSection(report);
+        }
+
+        setReport(report);
+      }
+
+      function renderMitral(xmlDoc) {
+        const prefix = "MitralValve";
+        const comments = getText(xmlDoc, "Fields > Comments") || getText(xmlDoc, "Comments");
+        const ctx = { comments, agatston: "", coplanar: "" };
+        setReport(renderTemplate(templates.MitralValve, ctx, xmlDoc, prefix));
+      }
+
+      function renderLaa(xmlDoc) {
+        const prefix = "LAA";
+
+        const ostiumMax = getMeasurementAnyId(xmlDoc, [
+          "OstialDimensionsRedMaxDiameter",
+          "LaaOstiumMaxDiameter"
+        ], prefix);
+        const ostiumMin = getMeasurementAnyId(xmlDoc, [
+          "OstialDimensionsRedMinDiameter",
+          "LaaOstiumMinDiameter"
+        ], prefix);
+        const ostiumPerimeterRaw = getMeasurementAnyId(xmlDoc, [
+          "OstialDimensionsRedPerimeter",
+          "LaaOstiumPerimeter"
+        ], prefix);
+        const ostiumPerimeter = ostiumPerimeterRaw != null
+          ? ostiumPerimeterRaw
+          : ellipsePerimeterFromDiameters(ostiumMax, ostiumMin);
+
+        const landingMax = getMeasurementAnyId(xmlDoc, [
+          "OstialDimensionsGreenMaxDiameter",
+          "LaaLandingZoneMaxDiameter"
+        ], prefix);
+        const landingMin = getMeasurementAnyId(xmlDoc, [
+          "OstialDimensionsGreenMinDiameter",
+          "LaaLandingZoneMinDiameter"
+        ], prefix);
+        const landingPerimeterRaw = getMeasurementAnyId(xmlDoc, [
+          "OstialDimensionsGreenPerimeter",
+          "LaaLandingZonePerimeter"
+        ], prefix);
+        const landingPerimeter = landingPerimeterRaw != null
+          ? landingPerimeterRaw
+          : ellipsePerimeterFromDiameters(landingMax, landingMin);
+
+        const laaDepth = getMeasurementAnyId(xmlDoc, [
+          "LaaLengthLength",
+          "LaaDepthLength",
+          "LaaDepth"
+        ], prefix);
+
+        setReport(renderTemplate(templates.LAA, {
+          ostium_max: fmt(ostiumMax),
+          ostium_min: fmt(ostiumMin),
+          ostium_perimeter: fmt(ostiumPerimeter),
+          laa_depth: fmt(laaDepth),
+          landing_max: fmt(landingMax),
+          landing_min: fmt(landingMin),
+          landing_perimeter: fmt(landingPerimeter)
+        }, xmlDoc, prefix));
+      }
+
+      /* ---------- file processing ---------- */
+
+      async function processFile() {
+        clearOutput();
+        reportContainer.style.display = "block";
+
+        const file = fileInput.files[0];
+        if (!file) return;
+
+        try {
+          await loadTemplates();
+        } catch (error) {
+          setReport(`Unable to load templates: ${error.message || error}`);
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.readAsText(file);
+
+        reader.onloadend = () => {
+          try {
+            const xmlDoc = parseXml(reader.result);
+            const workflow = detectWorkflow(xmlDoc);
+
+            appendHeader(`<strong>Patient Name:</strong> ${getText(xmlDoc, "PatientName")}<br>`);
+
+            if (workflow === "AorticValve") renderAortic(xmlDoc);
+            else if (workflow === "MitralValve") renderMitral(xmlDoc);
+            else if (workflow === "LAA") renderLaa(xmlDoc);
+            else setReport("Unknown workflow (no AorticValve, MitralValve, or LAA section found).");
+          } catch (error) {
+            setReport(`Error processing file: ${error.message || error}`);
+          }
+        };
+      }
+
+      /* ---------- events ---------- */
+
+      copyBtn.addEventListener("click", copyReport);
+      fileInput.addEventListener("change", processFile);
+    });
+  </script>
+</head>
+
+<body>
+  <div class="header-row">
+    <h2 style="margin:0;">3mensio XML Parser</h2>
+    <input type="file" id="file" accept=".xml">
+  </div>
+
+  <div id="header"></div>
+
+  <div id="reportContainer">
+    <button id="copyBtn">Copy</button>
+    <pre id="reportBlock"></pre>
+  </div>
+
+  <p style="clear: both">&copy; <script type="text/javascript">document.write(new Date().getFullYear());</script> Mark Tuttle</p>
+</body>
+</html>
