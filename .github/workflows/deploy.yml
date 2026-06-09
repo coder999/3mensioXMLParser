@@ -1,0 +1,43 @@
+name: Deploy to IONOS
+
+on:
+  workflow_dispatch:
+  ## push:
+  ##  branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show source and target
+        run: |
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Branch: $GITHUB_REF_NAME"
+          echo "Workspace: $GITHUB_WORKSPACE"
+          echo "Target: ${{ secrets.IONOS_TARGET }}"
+          ls -la "$GITHUB_WORKSPACE"
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s' "${{ secrets.IONOS_SSH_KEY }}" > ~/.ssh/ionos_deploy_key
+          chmod 600 ~/.ssh/ionos_deploy_key
+          ssh-keyscan -p "${{ secrets.IONOS_PORT || 22 }}" "${{ secrets.IONOS_HOST }}" >> ~/.ssh/known_hosts
+          
+      - name: Test SSH
+        run: |
+          ssh -i ~/.ssh/ionos_deploy_key -o IdentitiesOnly=yes -o BatchMode=yes \
+            -p "${{ secrets.IONOS_PORT || 22 }}" \
+            "${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }}" \
+            "echo SSH_OK && whoami"
+
+      - name: Deploy via rsync
+        run: |
+          rsync -az --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            -e "ssh -i ~/.ssh/ionos_deploy_key -o IdentitiesOnly=yes -p ${{ secrets.IONOS_PORT || 22 }}" \
+            ./ "${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }}:${{ secrets.IONOS_TARGET }}/"
+
