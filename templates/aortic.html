@@ -1,48 +1,78 @@
-<span style="font-weight: bold">TECHNIQUE:</span> The patient had a preliminary scan to obtain calcium score and was used for creating volume sets for contrasted scan. The patient then received intravenous contrast followed by a saline chase during which an overlapping sub-millimeter retrospective gated variable mAs spiral scan was obtained from a level above the aortic root through the base of the heart. Several reconstructions were performed on the source data at various points in the cardiac cycle. The reconstructed data sets were sent to an independent work station where extensive post-processing was performed that includes multiplanar 2D reformatting, 3-D volume reformatting, 3D thin slab MIP, vessel tracking, stenosis estimation, and functional evaluation. Representative images have been stored on PACS.
+<strong>CT CARDIAC TAVR</strong>
 
-Aortic valve calcium score: {{agatston}} Agatston units
+<strong>IMPRESSION:</strong> 
+1. The aortic valve is {bicuspid/trileaflet:108747} with calcium score of {{agatston}} Agatston units.
+2. The aortic valve annular area is {{M:AnnulusDimensionsArea}} mm2 and perimeter is {{M:AnnulusDimensionsPerimeter}} mm.
+3. Coronary arteries ***
+4. ***Iliofemoral arteries appear suitable for transfemoral TAVR.
 
-Annulus Area: {{M:AnnulusDimensionsArea}} mm2
-Annulus Perimeter: {{M:AnnulusDimensionsPerimeter}} mm
-STJ: {{X:SinotubularJunctionDiameterMin,SinotubularJunctionDiameterMax}} mm
-LVOT: {{X:LVOTDiameterMin,LVOTDiameterMax}} mm
+ 
+<strong>HISTORY: </strong>
+@DBLINK(ORD,180).
+
+<strong>TECHNIQUE</strong>: The patient had a preliminary scan to obtain calcium score and was used for creating volume sets for contrasted scan. The patient then received intravenous contrast followed by a saline chase during which an overlapping sub-millimeter retrospective gated variable mAs spiral scan was obtained from a level above the aortic root through the base of the heart. Several reconstructions were performed on the source data at various points in the cardiac cycle. The reconstructed data sets were sent to an independent work station where extensive post-processing was performed that includes multiplanar 2D reformatting, 3-D volume reformatting, 3D thin slab MIP, vessel tracking, stenosis estimation, and functional evaluation. Representative images have been stored on PACS. 
+
+<strong>CONTRAST:</strong> See MAR for medication administration.
+
+<strong>COMPARISON:</strong> {Comparison:108731::"None"}
+ 
+<strong>FLUOROSCOPY VIEWS:</strong>
+Coplanar projection: {{coplanar}}
+
+<strong>FINDINGS:</strong>
+***{{comments}}
+
+<u>Aortic Valve Morphology</u>
+Aortic valve calcium score is: {{agatston}} Agatston units.
+The aortic valve is {bicuspid/trileaflet:108747} and {severity:108748} calcified. The calcifications are noted on all three cusps. 
+{Planimetry (Optional):108753}
+
+<u>Aortic Valve Annulus</u>
+Area: {{M:AnnulusDimensionsArea}} mm<sup>2</sup>
+Perimeter: {{M:AnnulusDimensionsPerimeter}} mm
+
 Aortic Angle: {{M:HorizontalAortaAngleAngle}} degrees
-
-<strong>Sinuses of Valsalva:</strong>
-  Left:  {{M:SinusOfValsalvaLeftAvg}} mm
-  Right: {{M:SinusOfValsalvaRightAvg}} mm
-  Non:   {{M:SinusOfValsalvaNonAvg}} mm
-
-Left Coronary Height:  {{M:LeftCoronaryHeightLength}} mm
-Right Coronary Height: {{M:RightCoronaryHeightLength}} mm
-Ascending Aorta: {{X:AscendingAortaDiameterMin,AscendingAortaDiameterMax}} mm
 
 Coplanar projection: {{coplanar}}
 
-Comments:
-{{comments}}
+<u>Coronary Ostial Height</u>
+Left coronary height: {{M:LeftCoronaryHeightLength}} mm
+Right coronary height: {{M:RightCoronaryHeightLength}} mm
 
+LVOT: {{X:LVOTDiameterMin,LVOTDiameterMax}} mm
+STJ: {{X:SinotubularJunctionDiameterMin,SinotubularJunctionDiameterMax}} mm
+Ascending Aorta: {{X:AscendingAortaDiameterMin,AscendingAortaDiameterMax}} mm
+Significant calcification / narrowing / aneurysms / ectasia: {None:108754::"None"}
 
-Coronary arteries:
-Dominance:
-Left main coronary artery:
-Left anterior descending artery:
-Left circumflex artery:
-Right coronary artery:
+<u>Sinuses of Valsalva</u>
+Left coronary cusp to commissure diameter: {{M:SinusOfValsalvaLeftAvg}} mm
+Right coronary cusp to commissure diameter: {{M:SinusOfValsalvaRightAvg}} mm
+Non coronary cusp to commissure diameter: {{M:SinusOfValsalvaNonAvg}} mm 
 
-Iliofemoral arteries:
-Right common iliac artery: {{r_common_iliac}}
-Right external iliac artery: {{r_external_iliac}}
-Right common femoral artery: {{r_common_femoral}}
-Right femoral bifurcation: {{r_femoral_bifurcation}}
+<u>Coronary Anatomy</u>
+Coronary artery calcifications noted, however this study was not tailored to evaluate coronary artery anatomy
+The coronary arteries arise in normal position. There is {dominance:108733}coronary artery dominance. 
 
-Left common iliac artery: {{l_common_iliac}}
-Left external iliac artery: {{l_external_iliac}}
-Left common femoral artery: {{l_common_femoral}}
-Left femoral bifurcation: {{l_femoral_bifurcation}}
+<u>Left main:</u> 
+The left main coronary artery is a {short/medium/long:108734} size vessel and {bi/trifurcates:108735}. It is patent with no evidence of plaque or stenosis.
+ 
+<u>Left anterior descending:</u> 
+The left anterior descending artery is patent with no evidence of plaque or stenosis. It gives off {branching:108737} patent diagonal branches.
+ 
+<u>Left circumflex:</u> 
+Left circumflex artery is patent with no evidence of plaque or stenosis. It gives off {branching:108738} patent obtuse marginal branches. 
+ 
+<u>Right coronary:</u> 
+Right coronary artery is patent with no evidence of plaque or stenosis. It gives off a patent posterior descending artery and a patent posterior left ventricular branch. 
 
-IMPRESSION:
-1. The aortic valve is [] with calcium score of {{agatston}} Agatston units.
-2. The aortic valve annular area is {{M:AnnulusDimensionsArea}} mm2 and perimeter is {{M:AnnulusDimensionsPerimeter}} mm.
-3.
-4. Iliofemoral arteries appear suitable for transfemoral TAVR.
+<strong>CARDIAC CHAMBERS:</strong>
+
+<u>Atria:</u> The left and right atria are morphologically {Normal/Abnormal:108755}. {LAA (Optional):108767}
+
+<u>Ventricles:</u> The left and right ventricles are morphologically {Normal/Abnormal:108755}. 
+
+{Ejection Fraction (Optional):108756::"CARDIAC FUNCTION: Ejection fraction estimated at ***%."}
+
+<strong>NON-CARDIOVASCULAR FINDINGS:</strong>
+
+Please correlate with separate radiology report.
