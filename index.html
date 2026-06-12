@@ -2,48 +2,430 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>3mensio XML Parser</title>
 
   <style>
-    body { font-family: Arial, Helvetica, sans-serif; }
+    :root {
+      color-scheme: light;
+      --bg: #f4efe6;
+      --bg-accent: #e7dfd1;
+      --surface: rgba(255, 252, 246, 0.92);
+      --surface-strong: #fffdfa;
+      --text: #263238;
+      --muted: #5b686e;
+      --border: rgba(88, 99, 110, 0.16);
+      --shadow: 0 24px 60px rgba(68, 51, 24, 0.12);
+      --accent: #0f766e;
+      --accent-strong: #115e59;
+      --accent-soft: rgba(15, 118, 110, 0.12);
+      --danger: #b42318;
+      --success: #4b5563;
+      --mono-bg: #f7f5f0;
+    }
 
-    p { font-size: 60%;}
+    * {
+      box-sizing: border-box;
+    }
 
-    #reportContainer {
-      margin-top: 12px;
-      float: left;
+    html {
+      min-height: 100%;
+      background:
+        radial-gradient(circle at top left, rgba(231, 223, 209, 0.85), transparent 32%),
+        radial-gradient(circle at top right, rgba(190, 215, 210, 0.55), transparent 24%),
+        linear-gradient(180deg, #f6f1e9 0%, #f3eee4 100%);
+    }
+
+    body {
+      margin: 0;
+      color: var(--text);
+      font-family: "Segoe UI", "Trebuchet MS", Verdana, sans-serif;
+      min-height: 100vh;
+    }
+
+    a {
+      color: var(--accent-strong);
+    }
+
+    a:hover {
+      color: var(--accent);
+    }
+
+    .page-shell {
+      width: min(1080px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 40px 0 32px;
+    }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.95fr);
+      gap: 24px;
+      align-items: stretch;
+    }
+
+    .hero-panel,
+    .upload-panel,
+    .patient-panel,
+    .report-panel,
+    .notes-panel,
+    .footer-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+    }
+
+    .hero-panel {
+      padding: 30px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-panel::after {
+      content: "";
+      position: absolute;
+      inset: auto -60px -80px auto;
+      width: 220px;
+      height: 220px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(15, 118, 110, 0.18), transparent 68%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      padding: 6px 11px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(15, 118, 110, 0.16);
+      color: var(--accent-strong);
+      font-size: 0.74rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    h1 {
+      margin: 18px 0 10px;
+      font-family: "Palatino Linotype", "Book Antiqua", Georgia, serif;
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      line-height: 0.95;
+      letter-spacing: -0.03em;
+    }
+
+    .hero-copy {
+      max-width: 46rem;
+    }
+
+    .hero-copy p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.65;
+    }
+
+    .workflow-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin: 22px 0 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .workflow-list li,
+    .meta-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.8);
+      border: 1px solid rgba(88, 99, 110, 0.12);
+      color: var(--text);
+      font-size: 0.9rem;
+    }
+
+    .workflow-list li::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #0f766e, #58b9aa);
+      box-shadow: 0 0 0 5px rgba(15, 118, 110, 0.1);
+    }
+
+    .upload-panel {
+      padding: 26px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .upload-panel h2,
+    .report-heading h2,
+    .notes-panel h2 {
+      margin: 0;
+      font-size: 1.15rem;
+      letter-spacing: -0.02em;
+    }
+
+    .upload-panel p,
+    .notes-panel p,
+    .site-footer p {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .file-picker {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      min-height: 136px;
+      padding: 18px;
+      text-align: center;
+      border: 1.5px dashed rgba(15, 118, 110, 0.32);
+      border-radius: 22px;
+      background:
+        linear-gradient(135deg, rgba(255, 255, 255, 0.96), rgba(236, 247, 245, 0.92));
+      color: var(--accent-strong);
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease;
+    }
+
+    .file-picker:hover,
+    .file-picker:focus-within {
+      transform: translateY(-2px);
+      border-color: rgba(15, 118, 110, 0.56);
+      box-shadow: 0 14px 30px rgba(15, 118, 110, 0.12);
+    }
+
+    .file-picker input {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      border: 0;
+    }
+
+    .file-picker-text strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 1rem;
+    }
+
+    .file-picker-text span {
+      display: block;
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .file-name {
+      min-height: 1.5rem;
+      font-size: 0.95rem;
+      color: var(--muted);
+    }
+
+    .workspace {
+      margin-top: 24px;
+      display: grid;
+      gap: 18px;
+    }
+
+    #header {
       display: none;
     }
 
-    #reportBlock {
-      background: #f6f8fa;
-      border: 1px solid #d0d7de;
-      border-radius: 6px;
-      padding: 12px;
-      white-space: pre-wrap;
-      font-family: Consolas, Menlo, Monaco, monospace;
-      font-size: 13px;
-      line-height: 1.4em;
+    .patient-panel {
+      padding: 18px 22px;
+    }
+
+    .patient-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .patient-name {
+      font-size: 1.15rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    #reportContainer {
+      display: none;
+    }
+
+    .report-panel {
+      padding: 20px;
+    }
+
+    .report-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 14px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .report-heading p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 0.95rem;
     }
 
     #copyBtn {
-      float: right;
-      margin: 20px 10px 10px 10px;
-      padding: 6px 10px;
-      font-size: 12px;
+      border: none;
+      border-radius: 999px;
+      background: linear-gradient(135deg, var(--accent), #2f9b91);
+      color: #fff;
+      padding: 11px 18px;
+      font-size: 0.92rem;
+      font-weight: 700;
       cursor: pointer;
+      box-shadow: 0 12px 24px rgba(15, 118, 110, 0.2);
+      transition: transform 160ms ease, box-shadow 160ms ease, opacity 160ms ease, background 160ms ease;
     }
 
-    .header-row {
+    #copyBtn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 30px rgba(15, 118, 110, 0.26);
+    }
+
+    #copyBtn:disabled {
+      cursor: not-allowed;
+      opacity: 0.55;
+      box-shadow: none;
+    }
+
+    #copyBtn[data-state="success"] {
+      background: linear-gradient(135deg, #5a6676, #7a8794);
+    }
+
+    #copyBtn[data-state="error"] {
+      background: linear-gradient(135deg, #b42318, #c9574e);
+    }
+
+    #reportBlock {
+      margin: 0;
+      padding: 18px;
+      background: var(--mono-bg);
+      border: 1px solid rgba(88, 99, 110, 0.14);
+      border-radius: 18px;
+      white-space: pre-wrap;
+      font-family: Consolas, "Cascadia Mono", Menlo, Monaco, monospace;
+      font-size: 13px;
+      line-height: 1.55;
+      color: #1f2933;
+      overflow-x: auto;
+    }
+
+    .notes-panel {
+      margin-top: 24px;
+      padding: 22px;
+    }
+
+    .notes-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+
+    .note {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.58);
+      border: 1px solid rgba(88, 99, 110, 0.1);
+    }
+
+    .note h3 {
+      margin: 0 0 8px;
+      font-size: 0.98rem;
+    }
+
+    .note p {
+      font-size: 0.9rem;
+    }
+
+    .footer-panel {
+      margin-top: 20px;
+      padding: 18px 22px;
+    }
+
+    .site-footer {
       display: flex;
-      align-items: center;   /* vertical centering */
-      gap: 12px;             /* space between title and input */
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .site-footer small {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    @media (max-width: 860px) {
+      .page-shell {
+        width: min(100% - 24px, 1080px);
+        padding-top: 24px;
+      }
+
+      .hero {
+        grid-template-columns: 1fr;
+      }
+
+      .notes-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .hero-panel,
+      .upload-panel,
+      .patient-panel,
+      .report-panel,
+      .notes-panel,
+      .footer-panel {
+        border-radius: 20px;
+      }
+
+      .hero-panel,
+      .upload-panel,
+      .notes-panel,
+      .footer-panel {
+        padding-left: 18px;
+        padding-right: 18px;
+      }
+
+      .report-toolbar {
+        align-items: stretch;
+      }
+
+      #copyBtn {
+        width: 100%;
+      }
     }
   </style>
 
   <script>
     document.addEventListener("DOMContentLoaded", () => {
       const fileInput  = document.getElementById("file");
+      const selectedFileNameEl = document.getElementById("selectedFileName");
       const headerEl   = document.getElementById("header");
       const reportBlock = document.getElementById("reportBlock");
       const copyBtn    = document.getElementById("copyBtn");
@@ -119,12 +501,14 @@
 
       function clearOutput() {
         headerEl.innerHTML = "";
+        headerEl.style.display = "none";
         reportBlock.innerHTML = "";
         currentReportRaw = "";
         currentReportHtml = "";
         currentClipboardHtml = "";
-        copyBtn.removeAttribute("style");
-        copyBtn.textContent = "Copy";
+        copyBtn.textContent = "Copy report";
+        copyBtn.dataset.state = "";
+        copyBtn.disabled = true;
       }
 
       async function copyReport() {
@@ -160,21 +544,40 @@
           }
 
           copyBtn.textContent = "Copied";
-          copyBtn.style.color = "#999999";
+          copyBtn.dataset.state = "success";
         } catch (_) {
           try {
             await navigator.clipboard.writeText(plain);
             copyBtn.textContent = "Copied";
-            copyBtn.style.color = "#999999";
+            copyBtn.dataset.state = "success";
           } catch (_) {
             copyBtn.textContent = "Copy failed";
-            copyBtn.style.color = "#b42318";
+            copyBtn.dataset.state = "error";
           }
         }
       }
 
-      function appendHeader(html) {
-        headerEl.insertAdjacentHTML("beforeend", html);
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>"']/g, char => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          "\"": "&quot;",
+          "'": "&#39;"
+        }[char]));
+      }
+
+      function setPatientHeader(patientName, workflow, fileName) {
+        headerEl.innerHTML = `
+          <div class="patient-panel">
+            <div class="patient-meta">
+              <span class="meta-pill">Workflow: ${escapeHtml(workflow || "Unknown")}</span>
+              <span class="meta-pill">File: ${escapeHtml(fileName || "Unknown")}</span>
+              <span class="patient-name">${escapeHtml(patientName || "Patient name unavailable")}</span>
+            </div>
+          </div>
+        `;
+        headerEl.style.display = "block";
       }
 
       function setReport(text) {
@@ -183,6 +586,9 @@
         currentReportHtml = currentReportRaw.replace(/<script[\s\S]*?<\/script>/gi, "");
         currentClipboardHtml = currentReportHtml.replace(/\n/g, "<br>\n");
         reportBlock.innerHTML = currentReportHtml;
+        copyBtn.textContent = "Copy report";
+        copyBtn.dataset.state = "";
+        copyBtn.disabled = currentReportRaw.trim().length === 0;
       }
 
       function parseXml(xmlString) {
@@ -482,10 +888,11 @@
 
       async function processFile() {
         clearOutput();
-        reportContainer.style.display = "block";
 
         const file = fileInput.files[0];
+        selectedFileNameEl.textContent = file ? `Selected file: ${file.name}` : "No file selected yet.";
         if (!file) return;
+        reportContainer.style.display = "block";
 
         try {
           await loadTemplates();
@@ -502,7 +909,7 @@
             const xmlDoc = parseXml(reader.result);
             const workflow = detectWorkflow(xmlDoc);
 
-            appendHeader(`<strong>Patient Name:</strong> ${getText(xmlDoc, "PatientName")}<br>`);
+            setPatientHeader(getText(xmlDoc, "PatientName"), workflow, file.name);
 
             if (workflow === "AorticValve") renderAortic(xmlDoc);
             else if (workflow === "MitralValve") renderMitral(xmlDoc);
@@ -518,35 +925,91 @@
 
       copyBtn.addEventListener("click", copyReport);
       fileInput.addEventListener("change", processFile);
+      clearOutput();
     });
   </script>
 </head>
 
 <body>
-  <div class="header-row">
-    <h2 style="margin:0;">3mensio XML Parser</h2>
-    <input type="file" id="file" accept=".xml">
-  </div>
+  <main class="page-shell">
+    <section class="hero">
+      <div class="hero-panel">
+        <span class="eyebrow">Workflow Support Utility</span>
+        <div class="hero-copy">
+          <h1>3mensio XML Parser</h1>
+          <p>
+            Load an exported XML file and generate a clean, copy-ready report for the supported
+            3mensio workflows without changing the underlying parsing behavior.
+          </p>
+        </div>
+        <ul class="workflow-list">
+          <li>Aortic valve</li>
+          <li>Mitral valve</li>
+          <li>LAA planning</li>
+        </ul>
+      </div>
 
-  <div id="header"></div>
+      <aside class="upload-panel" aria-label="Upload XML export">
+        <h2>Import Export File</h2>
+        <p>Choose a local `.xml` export to parse. The generated report will appear below.</p>
+        <label class="file-picker">
+          <span class="file-picker-text">
+            <strong>Choose XML file</strong>
+            <span>Click here or use your keyboard to browse local exports</span>
+          </span>
+          <input type="file" id="file" accept=".xml">
+        </label>
+        <div class="file-name" id="selectedFileName">No file selected yet.</div>
+      </aside>
+    </section>
 
-  <div id="reportContainer">
-    <button id="copyBtn">Copy</button>
-    <pre id="reportBlock"></pre>
-  </div>
+    <section class="workspace">
+      <div id="header" aria-live="polite"></div>
 
-  <p style="clear: both">v1.0 &copy; <script type="text/javascript">document.write(new Date().getFullYear());</script> Mark Tuttle</p>
+      <div id="reportContainer" class="report-panel">
+        <div class="report-toolbar">
+          <div class="report-heading">
+            <span class="eyebrow">Generated Output</span>
+            <h2>Report Preview</h2>
+            <p>Review the parsed text, then copy it directly into your downstream workflow.</p>
+          </div>
+          <button id="copyBtn" type="button">Copy report</button>
+        </div>
+        <pre id="reportBlock"></pre>
+      </div>
+    </section>
 
-  <p>
-    This project is an unofficial parser for XML exports generated by 3mensio-related workflows.
-It is not affiliated with, endorsed by, or supported by 3mensio, Pie Medical Imaging, or Esaote.
-  </p><p>
-This software is intended for research, workflow support, and data extraction only.
-It is not a medical device and should not be used as the sole basis for clinical decision-making.
-Users are responsible for validating extracted values against the source report/export.
-  </p><p>
-Users are solely responsible for ensuring that any data processed, stored, shared, or committed using this software complies with applicable patient privacy requirements, institutional policies, and laws governing protected health information. Do not include patient-identifiable XML exports, screenshots, reports, or derived datasets in public repositories or other shared locations unless they have been properly de-identified and approved for that use.
-  </p>
-  <p><a href="https://github.com/coder999/3mensioXMLParser">See the GitHub repository here</a>.</p>
+    <section class="notes-panel" aria-label="Usage notes and disclaimers">
+      <h2>Use Notes</h2>
+      <div class="notes-grid">
+        <article class="note">
+          <h3>Unofficial Project</h3>
+          <p>
+            This parser is an independent utility for XML exports and is not affiliated with,
+            endorsed by, or supported by 3mensio, Pie Medical Imaging, or Esaote.
+          </p>
+        </article>
+        <article class="note">
+          <h3>Clinical Caution</h3>
+          <p>
+            It is intended for research, workflow support, and data extraction only. Validate all
+            extracted values against the source report before any clinical use.
+          </p>
+        </article>
+        <article class="note">
+          <h3>Privacy Responsibility</h3>
+          <p>
+            Handle patient data carefully and avoid sharing identifiable XML exports, screenshots,
+            reports, or derived datasets unless they are properly de-identified and approved.
+          </p>
+        </article>
+      </div>
+    </section>
+
+    <footer class="footer-panel site-footer">
+      <p><a href="https://github.com/coder999/3mensioXMLParser">View the GitHub repository</a></p>
+      <small>v1.0 &copy; <script type="text/javascript">document.write(new Date().getFullYear());</script> Mark Tuttle</small>
+    </footer>
+  </main>
 </body>
 </html>
