@@ -38,6 +38,12 @@ admin_header('Dashboard', 'dashboard');
 <?php flash_render(); ?>
 
 <?php if ($ga !== null): ?>
+  <?php if (empty($ga['daily'])): ?>
+  <div class="card" style="margin-bottom:16px;">
+    <h2>Google Analytics</h2>
+    <p class="hint">No analytics data reported yet for the last 28 days.</p>
+  </div>
+  <?php else: ?>
   <?php
     $t = $ga['totals'];
     $p = $ga['prev'];
@@ -241,6 +247,7 @@ admin_header('Dashboard', 'dashboard');
       </div>
     </div>
   </div>
+  <?php endif; ?>
 
 <?php elseif ($gaError !== null): ?>
   <div class="card" style="margin-bottom:16px;">
