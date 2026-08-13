@@ -1,0 +1,51 @@
+{
+    "packages": [
+        {
+            "name": "coder999/single-auth",
+            "version": "v0.2.0",
+            "version_normalized": "0.2.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/coder999/single-auth.git",
+                "reference": "cf55dc08f1d5876196c549d76adf73f7e3c49d42"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/coder999/single-auth/zipball/cf55dc08f1d5876196c549d76adf73f7e3c49d42",
+                "reference": "cf55dc08f1d5876196c549d76adf73f7e3c49d42",
+                "shasum": ""
+            },
+            "require": {
+                "ext-pdo": "*",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^10.5"
+            },
+            "time": "2026-08-13T02:21:39+00:00",
+            "type": "library",
+            "installation-source": "dist",
+            "autoload": {
+                "psr-4": {
+                    "Mtmd\\SingleAuth\\": "src/"
+                }
+            },
+            "autoload-dev": {
+                "psr-4": {
+                    "Mtmd\\SingleAuth\\Tests\\": "tests/"
+                }
+            },
+            "license": [
+                "proprietary"
+            ],
+            "description": "Shared PHP identity/session library for marktuttlemd.com and its subdomain apps",
+            "support": {
+                "source": "https://github.com/coder999/single-auth/tree/v0.2.0",
+                "issues": "https://github.com/coder999/single-auth/issues"
+            },
+            "install-path": "../coder999/single-auth"
+        }
+    ],
+    "dev": true,
+    "dev-package-names": []
+}
