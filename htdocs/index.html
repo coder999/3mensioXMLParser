@@ -643,6 +643,15 @@
         return null;
       }
 
+      function getReportableValueById(xmlDoc, id, prefix) {
+        const node =
+          xmlDoc.querySelector(`Measurement[ReportId^="${prefix}"] > ReportableValue[Id="${id}"]`)
+          || xmlDoc.querySelector(`ReportableValue[Id="${id}"]`);
+        if (!node) return null;
+        const v = parseFloat(node.getAttribute("Value"));
+        return Number.isFinite(v) ? v : null;
+      }
+
       function getMeasurementAnyId(xmlDoc, ids, prefix) {
         for (const id of ids || []) {
           const v = getMeasurement(xmlDoc, id, prefix);
@@ -682,8 +691,8 @@
       }
 
       function extractAgatston(text) {
-        // matches "Agatston 498" or "Agatson 3075" etc.
-        const m = String(text || "").match(/\bagatst?on\b[\s:=\-]*([0-9,\s]+)/i);
+        // matches "Agatston 498", "Agatson 3075", or "Agatston score 29" etc.
+        const m = String(text || "").match(/\bagatst?on\b\s*(?:score)?[\s:=\-]*([0-9,\s]+)/i);
         return m ? m[1].replace(/[,\s]/g, "") : "";
       }
 
@@ -760,9 +769,10 @@
       function renderAortic(xmlDoc) {
         const prefix = "AorticValve";
         const comments = getText(xmlDoc, "Fields > Comments") || getText(xmlDoc, "Comments");
+        const totalAgatston = getReportableValueById(xmlDoc, "TotalAgatston", prefix);
         const ctx = {
           comments,
-          agatston: extractAgatston(comments),
+          agatston: totalAgatston != null ? String(Math.round(totalAgatston)) : extractAgatston(comments),
           coplanar: extractCoplanar(comments),
           r_common_iliac: vesselDiameter(xmlDoc, prefix, {
             minIds: ["RightCommonIliacDiameterMin", "RightCommonIliacMin"],
