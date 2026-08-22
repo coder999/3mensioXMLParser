@@ -59,12 +59,18 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Plain rsync, default (644) perms -- NOT sftp+chmod 600. See
-          # this plan's Global Constraints: mensioxml-deploy and the
-          # phpfpm container's www-data (uid 82) are different users, so
-          # a 600 file owned by mensioxml-deploy would be unreadable by
-          # the app.
-          rsync -avz --delete \
+          # Plain rsync -- NOT sftp+chmod 600. See this plan's Global
+          # Constraints: mensioxml-deploy and the phpfpm container's
+          # www-data (uid 82) are different users, so a 600 file owned by
+          # mensioxml-deploy would be unreadable by the app.
+          #
+          # --chmod=F640 (tightened from the original default 644, final
+          # review Finding 6): world-readable was broader than needed --
+          # 640 + group 82 (www-data inside vps-phpfpm:8.4, see
+          # sites/mensioxml's ownership setup) still lets the app read
+          # these while no longer exposing them to every local account on
+          # the host.
+          rsync -avz --delete --chmod=F640 \
             -e "ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes" \
             /tmp/mensioxml-secrets/ \
             mensioxml-deploy@vps-4b80346f.vps.ovh.us:secrets/
@@ -84,5 +90,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          page="$(curl -sf --resolve 3mensio.marktuttlemd.com:443:15.204.123.196 https://3mensio.marktuttlemd.com/healthz.php -k)"
-          echo "$page" | grep -q OK && echo "Deploy verified: healthz OK"
+          # Real domain, real DNS -- NOT --resolve straight to the VPS's
+          # IP. This VPS's 80/443 are DOCKER-USER-restricted to
+          # Cloudflare's published IP ranges only (architecture.md's
+          # Firewall section), so a GitHub Actions runner's IP can never
+          # reach it via --resolve; the only request shape CI can use is
+          # a real request through Cloudflare's edge, i.e. the real
+          # domain over real DNS. (Found post-cutover, final review
+          # Finding 1: runs 32575258603 and 32576430234 both black-holed
+          # permanently on the old --resolve/-k form, regardless of DNS
+          # state.)
+          curl -sf https://3mensio.marktuttlemd.com/healthz.php | grep -q OK && echo "Deploy verified: healthz OK"

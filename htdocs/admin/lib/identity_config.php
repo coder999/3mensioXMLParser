@@ -29,12 +29,14 @@ if ($isLocal) {
 } else {
     // dirname(__DIR__) is htdocs/admin/lib -> htdocs/admin -> htdocs ->
     // project root. Deliberately __DIR__-based, not
-    // $_SERVER['DOCUMENT_ROOT'] — this IONOS account's PHP CLI SAPI
-    // doesn't leave DOCUMENT_ROOT unset, it resolves to an empty/root
-    // value, so a CLI run here would silently produce a bogus,
-    // prefix-less secrets path. __DIR__ is this file's own compile-time
-    // location and is unconditionally correct in both web and CLI
-    // contexts. Same fix already applied in mdproductivity's,
+    // $_SERVER['DOCUMENT_ROOT'] — this app now runs containerized on the
+    // VPS (vps-phpfpm:8.4), but the same caution originally raised on
+    // IONOS's shared-hosting PHP CLI SAPI still applies generally:
+    // DOCUMENT_ROOT is only ever populated on a real web request, so any
+    // CLI invocation would silently produce a bogus, prefix-less secrets
+    // path. __DIR__ is this file's own compile-time location and is
+    // unconditionally correct in both web and CLI contexts, on this VPS
+    // or anywhere else. Same fix already applied in mdproductivity's,
     // marktuttlemd's, and single-auth's own config files.
     $secretsFile = dirname(dirname(dirname(__DIR__))) . '/secrets/identity-db-config.php';
     $secrets = is_file($secretsFile) ? require $secretsFile : [];
@@ -77,13 +79,18 @@ if ($isLocal) {
     // doesn't fatal on an undefined one.
     define('IDENTITY_DB_SSL_CA', dirname(dirname(dirname(__DIR__))) . '/secrets/local-single-auth-ca-placeholder.pem');
 } else {
-    // 3mensio's identity DB hop is a remote connection over the public
-    // internet (IONOS -> the VPS's public IP), not a same-Docker-network
-    // hop. single-auth-ca.pem is shipped outside the webroot by this
-    // same deploy workflow's identity-secrets step, alongside
-    // identity-db-config.php -- see .github/workflows/deploy.yml. Same
-    // path base as $secretsFile above: dirname(dirname(dirname(__DIR__)))
-    // is htdocs/admin/lib -> htdocs/admin -> htdocs -> project root,
-    // secrets/ is a sibling of htdocs/.
+    // 3mensio's identity DB hop is now a same-Docker-network hop to
+    // single-auth-mariadb over the `identity` network (see
+    // sites/mensioxml/compose.yml in vps-infra) -- not a remote
+    // connection over the public internet the way the old IONOS ->
+    // VPS-public-IP hop was before this app's own VPS hosting migration.
+    // TLS is still required and verified regardless (see the comment
+    // above this if/else), same-network or not. single-auth-ca.pem is
+    // shipped outside the webroot by this same deploy workflow's
+    // identity-secrets step, alongside identity-db-config.php -- see
+    // .github/workflows/deploy.yml. Same path base as $secretsFile
+    // above: dirname(dirname(dirname(__DIR__))) is htdocs/admin/lib ->
+    // htdocs/admin -> htdocs -> project root, secrets/ is a sibling of
+    // htdocs/.
     define('IDENTITY_DB_SSL_CA', dirname(dirname(dirname(__DIR__))) . '/secrets/single-auth-ca.pem');
 }
