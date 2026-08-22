@@ -1,0 +1,88 @@
+name: Deploy 3mensioXMLParser to VPS
+
+on:
+  workflow_dispatch:
+  # Not push-triggered yet -- stays manual until Task 7 merges
+  # vps-migration to main and this becomes the real deploy.yml.
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up SSH
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "${{ secrets.VPS_DEPLOY_KEY }}" > "$HOME/.ssh/deploy_key"
+          chmod 600 "$HOME/.ssh/deploy_key"
+          ssh-keyscan vps-4b80346f.vps.ovh.us >> "$HOME/.ssh/known_hosts"
+
+      - name: Render identity + GA secrets files
+        shell: bash
+        env:
+          SINGLE_AUTH_DB_HOST: ${{ secrets.VPS_SINGLE_AUTH_DB_HOST }}
+          SINGLE_AUTH_DB_PORT: ${{ secrets.VPS_SINGLE_AUTH_DB_PORT }}
+          SINGLE_AUTH_DB_NAME: ${{ secrets.VPS_SINGLE_AUTH_DB_NAME }}
+          SINGLE_AUTH_DB_USER: ${{ secrets.VPS_SINGLE_AUTH_DB_USER }}
+          SINGLE_AUTH_DB_PASS: ${{ secrets.VPS_SINGLE_AUTH_DB_PASS }}
+          SINGLE_AUTH_CA_CERT: ${{ secrets.SINGLE_AUTH_CA_CERT }}
+          GA4_PROPERTY_ID: ${{ secrets.GA4_PROPERTY_ID }}
+          GA_SERVICE_ACCOUNT_JSON: ${{ secrets.GA_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          : "${SINGLE_AUTH_DB_HOST:?}" "${SINGLE_AUTH_DB_PORT:?}" "${SINGLE_AUTH_DB_NAME:?}" "${SINGLE_AUTH_DB_USER:?}" "${SINGLE_AUTH_DB_PASS:?}" "${SINGLE_AUTH_CA_CERT:?}" "${GA4_PROPERTY_ID:?}" "${GA_SERVICE_ACCOUNT_JSON:?}"
+          command -v envsubst >/dev/null || (sudo apt-get update && sudo apt-get install -y gettext-base)
+          mkdir -p /tmp/mensioxml-secrets
+
+          SINGLE_AUTH_DB_HOST_B64="$(printf '%s' "$SINGLE_AUTH_DB_HOST" | base64 -w0)"
+          SINGLE_AUTH_DB_PORT_B64="$(printf '%s' "$SINGLE_AUTH_DB_PORT" | base64 -w0)"
+          SINGLE_AUTH_DB_NAME_B64="$(printf '%s' "$SINGLE_AUTH_DB_NAME" | base64 -w0)"
+          SINGLE_AUTH_DB_USER_B64="$(printf '%s' "$SINGLE_AUTH_DB_USER" | base64 -w0)"
+          SINGLE_AUTH_DB_PASS_B64="$(printf '%s' "$SINGLE_AUTH_DB_PASS" | base64 -w0)"
+          export SINGLE_AUTH_DB_HOST_B64 SINGLE_AUTH_DB_PORT_B64 SINGLE_AUTH_DB_NAME_B64
+          export SINGLE_AUTH_DB_USER_B64 SINGLE_AUTH_DB_PASS_B64
+          envsubst '$SINGLE_AUTH_DB_HOST_B64 $SINGLE_AUTH_DB_PORT_B64 $SINGLE_AUTH_DB_NAME_B64 $SINGLE_AUTH_DB_USER_B64 $SINGLE_AUTH_DB_PASS_B64' \
+            < deploy/secrets/identity-db-config.php.template > /tmp/mensioxml-secrets/identity-db-config.php
+
+          GA4_PROPERTY_ID_B64="$(printf '%s' "$GA4_PROPERTY_ID" | base64 -w0)"
+          GA_SERVICE_ACCOUNT_JSON_B64="$(printf '%s' "$GA_SERVICE_ACCOUNT_JSON" | base64 -w0)"
+          export GA4_PROPERTY_ID_B64 GA_SERVICE_ACCOUNT_JSON_B64
+          envsubst '$GA4_PROPERTY_ID_B64 $GA_SERVICE_ACCOUNT_JSON_B64' \
+            < deploy/secrets/ga-config.php.template > /tmp/mensioxml-secrets/ga-config.php
+
+          printf '%s\n' "$SINGLE_AUTH_CA_CERT" > /tmp/mensioxml-secrets/single-auth-ca.pem
+
+      - name: Ship secrets via rsync
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Plain rsync, default (644) perms -- NOT sftp+chmod 600. See
+          # this plan's Global Constraints: mensioxml-deploy and the
+          # phpfpm container's www-data (uid 82) are different users, so
+          # a 600 file owned by mensioxml-deploy would be unreadable by
+          # the app.
+          rsync -avz --delete \
+            -e "ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes" \
+            /tmp/mensioxml-secrets/ \
+            mensioxml-deploy@vps-4b80346f.vps.ovh.us:secrets/
+
+      - name: Deploy code via rsync
+        shell: bash
+        run: |
+          set -euo pipefail
+          # local.marker must never land here -- see Global Constraints.
+          rsync -avz --delete \
+            --exclude 'admin/local.marker' \
+            -e "ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes" \
+            htdocs/ \
+            mensioxml-deploy@vps-4b80346f.vps.ovh.us:htdocs/
+
+      - name: Verify
+        shell: bash
+        run: |
+          set -euo pipefail
+          page="$(curl -sf --resolve 3mensio.marktuttlemd.com:443:15.204.123.196 https://3mensio.marktuttlemd.com/healthz.php -k)"
+          echo "$page" | grep -q OK && echo "Deploy verified: healthz OK"
