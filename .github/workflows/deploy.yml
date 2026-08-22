@@ -64,13 +64,20 @@ jobs:
           # www-data (uid 82) are different users, so a 600 file owned by
           # mensioxml-deploy would be unreadable by the app.
           #
-          # --chmod=F640 (tightened from the original default 644, final
-          # review Finding 6): world-readable was broader than needed --
-          # 640 + group 82 (www-data inside vps-phpfpm:8.4, see
+          # --chmod=D2750,F640 (tightened from the original default 644,
+          # final review Finding 6): world-readable was broader than
+          # needed -- 640 + group 82 (www-data inside vps-phpfpm:8.4, see
           # sites/mensioxml's ownership setup) still lets the app read
           # these while no longer exposing them to every local account on
-          # the host.
-          rsync -avz --delete --chmod=F640 \
+          # the host. D2750 (not just a one-time `chmod g+s` on the VPS)
+          # is deliberate: plain `-a` also preserves the *directory's*
+          # mode from this rsync's own source side (/tmp/mensioxml-secrets,
+          # plain 755, no setgid) on every run, which was found to
+          # silently strip a hand-set setgid bit back off app/secrets/ on
+          # the very next deploy. Forcing D2750 here makes the setgid bit
+          # self-healing every run instead of a one-time VPS-side change
+          # that the next deploy would quietly undo.
+          rsync -avz --delete --chmod=D2750,F640 \
             -e "ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes" \
             /tmp/mensioxml-secrets/ \
             mensioxml-deploy@vps-4b80346f.vps.ovh.us:secrets/
