@@ -1,0 +1,128 @@
+name: Deploy to IONOS
+
+on:
+  workflow_dispatch:
+  ## push:
+  ##  branches: [ "main" ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show source and target
+        run: |
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Branch: $GITHUB_REF_NAME"
+          echo "Workspace: $GITHUB_WORKSPACE"
+          echo "Target: ${{ secrets.IONOS_TARGET }}"
+          ls -la "$GITHUB_WORKSPACE"
+
+      - name: Set up SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.IONOS_SSH_KEY }}" > ~/.ssh/ionos_deploy_key
+          chmod 600 ~/.ssh/ionos_deploy_key
+          ssh-keyscan -p "${{ secrets.IONOS_PORT || 22 }}" "${{ secrets.IONOS_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Test SSH
+        run: |
+          ssh -i ~/.ssh/ionos_deploy_key -o IdentitiesOnly=yes -o BatchMode=yes \
+            -p "${{ secrets.IONOS_PORT || 22 }}" \
+            "${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }}" \
+            "echo SSH_OK && whoami"
+
+      - name: Deploy via rsync
+        run: |
+          rsync -az --delete \
+            --exclude '.git/' \
+            --exclude '.github/' \
+            --exclude 'deploy/' \
+            --exclude 'secrets/' \
+            --exclude 'cache/' \
+            --exclude 'htdocs/admin/local.marker' \
+            -e "ssh -i ~/.ssh/ionos_deploy_key -o IdentitiesOnly=yes -p ${{ secrets.IONOS_PORT || 22 }}" \
+            ./ "${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }}:${{ secrets.IONOS_TARGET }}/"
+
+      - name: Render identity secrets file
+        env:
+          SINGLE_AUTH_DB_HOST: ${{ secrets.SINGLE_AUTH_DB_HOST }}
+          SINGLE_AUTH_DB_PORT: ${{ secrets.SINGLE_AUTH_DB_PORT }}
+          SINGLE_AUTH_DB_NAME: ${{ secrets.SINGLE_AUTH_DB_NAME }}
+          SINGLE_AUTH_DB_USER: ${{ secrets.SINGLE_AUTH_DB_USER }}
+          SINGLE_AUTH_DB_PASS: ${{ secrets.SINGLE_AUTH_DB_PASS }}
+          SINGLE_AUTH_CA_CERT: ${{ secrets.SINGLE_AUTH_CA_CERT }}
+        run: |
+          set -euo pipefail
+          : "${SINGLE_AUTH_DB_HOST:?}" "${SINGLE_AUTH_DB_PORT:?}" "${SINGLE_AUTH_DB_NAME:?}" "${SINGLE_AUTH_DB_USER:?}" "${SINGLE_AUTH_DB_PASS:?}" "${SINGLE_AUTH_CA_CERT:?}"
+          command -v envsubst >/dev/null || (sudo apt-get update && sudo apt-get install -y gettext-base)
+          # Base64-encode each value so quotes/backslashes in a secret can never
+          # break out of the single-quoted PHP string literal in the template.
+          SINGLE_AUTH_DB_HOST_B64="$(printf '%s' "$SINGLE_AUTH_DB_HOST" | base64 -w0)"
+          SINGLE_AUTH_DB_PORT_B64="$(printf '%s' "$SINGLE_AUTH_DB_PORT" | base64 -w0)"
+          SINGLE_AUTH_DB_NAME_B64="$(printf '%s' "$SINGLE_AUTH_DB_NAME" | base64 -w0)"
+          SINGLE_AUTH_DB_USER_B64="$(printf '%s' "$SINGLE_AUTH_DB_USER" | base64 -w0)"
+          SINGLE_AUTH_DB_PASS_B64="$(printf '%s' "$SINGLE_AUTH_DB_PASS" | base64 -w0)"
+          export SINGLE_AUTH_DB_HOST_B64 SINGLE_AUTH_DB_PORT_B64 SINGLE_AUTH_DB_NAME_B64
+          export SINGLE_AUTH_DB_USER_B64 SINGLE_AUTH_DB_PASS_B64
+          envsubst '$SINGLE_AUTH_DB_HOST_B64 $SINGLE_AUTH_DB_PORT_B64 $SINGLE_AUTH_DB_NAME_B64 $SINGLE_AUTH_DB_USER_B64 $SINGLE_AUTH_DB_PASS_B64' \
+            < deploy/secrets/identity-db-config.php.template > /tmp/identity-db-config.php
+          # single-auth-ca.pem -- the single-auth-mariadb TLS CA cert's
+          # public half, needed by htdocs/admin/lib/identity_config.php's
+          # IDENTITY_DB_SSL_CA. Not PHP array config, so shipped as a raw
+          # file rather than through the envsubst template above --
+          # printf (not echo) preserves the PEM's exact multi-line content
+          # without shell interpretation, with our own trailing newline
+          # appended in case GitHub Actions' secrets substitution stripped
+          # the source file's own one (same rationale as the "Set up SSH"
+          # step's private-key handling above). Same pattern already
+          # working in mdproductivity's deploy.yml.
+          printf '%s\n' "$SINGLE_AUTH_CA_CERT" > /tmp/single-auth-ca.pem
+
+      - name: Render GA secrets file
+        env:
+          GA4_PROPERTY_ID: ${{ secrets.GA4_PROPERTY_ID }}
+          GA_SERVICE_ACCOUNT_JSON: ${{ secrets.GA_SERVICE_ACCOUNT_JSON }}
+        run: |
+          set -euo pipefail
+          : "${GA4_PROPERTY_ID:?}" "${GA_SERVICE_ACCOUNT_JSON:?}"
+          # Base64-encode each value so quotes/backslashes in a secret can never
+          # break out of the single-quoted PHP string literal in the template.
+          GA4_PROPERTY_ID_B64="$(printf '%s' "$GA4_PROPERTY_ID" | base64 -w0)"
+          GA_SERVICE_ACCOUNT_JSON_B64="$(printf '%s' "$GA_SERVICE_ACCOUNT_JSON" | base64 -w0)"
+          export GA4_PROPERTY_ID_B64 GA_SERVICE_ACCOUNT_JSON_B64
+          envsubst '$GA4_PROPERTY_ID_B64 $GA_SERVICE_ACCOUNT_JSON_B64' \
+            < deploy/secrets/ga-config.php.template > /tmp/ga-config.php
+
+      - name: Ship identity secrets file outside webroot
+        env:
+          IONOS_SECRETS_PATH: ${{ secrets.IONOS_SECRETS_PATH }}
+          PROJECT_DIR: 3mensio
+        run: |
+          set -euo pipefail
+          : "${IONOS_SECRETS_PATH:?}"
+          REMOTE_SECRETS_PATH="$PROJECT_DIR/$IONOS_SECRETS_PATH"
+          printf -- '-mkdir %s\nchmod 700 %s\nput /tmp/identity-db-config.php %s/identity-db-config.php\nchmod 600 %s/identity-db-config.php\nput /tmp/single-auth-ca.pem %s/single-auth-ca.pem\nchmod 600 %s/single-auth-ca.pem\n' \
+            "$REMOTE_SECRETS_PATH" "$REMOTE_SECRETS_PATH" "$REMOTE_SECRETS_PATH" "$REMOTE_SECRETS_PATH" "$REMOTE_SECRETS_PATH" "$REMOTE_SECRETS_PATH" \
+            > /tmp/sftp-batch-identity.txt
+          sftp -i ~/.ssh/ionos_deploy_key -o IdentitiesOnly=yes -o BatchMode=yes \
+            -P "${{ secrets.IONOS_PORT || 22 }}" \
+            -b /tmp/sftp-batch-identity.txt \
+            "${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }}"
+
+      - name: Ship GA secrets file outside webroot
+        env:
+          IONOS_SECRETS_PATH: ${{ secrets.IONOS_SECRETS_PATH }}
+          PROJECT_DIR: 3mensio
+        run: |
+          set -euo pipefail
+          : "${IONOS_SECRETS_PATH:?}"
+          REMOTE_SECRETS_PATH="$PROJECT_DIR/$IONOS_SECRETS_PATH"
+          printf -- '-mkdir %s\nchmod 700 %s\nput /tmp/ga-config.php %s/ga-config.php\nchmod 600 %s/ga-config.php\n' \
+            "$REMOTE_SECRETS_PATH" "$REMOTE_SECRETS_PATH" "$REMOTE_SECRETS_PATH" "$REMOTE_SECRETS_PATH" \
+            > /tmp/sftp-batch-ga.txt
+          sftp -i ~/.ssh/ionos_deploy_key -o IdentitiesOnly=yes -o BatchMode=yes \
+            -P "${{ secrets.IONOS_PORT || 22 }}" \
+            -b /tmp/sftp-batch-ga.txt \
+            "${{ secrets.IONOS_USER }}@${{ secrets.IONOS_HOST }}"
