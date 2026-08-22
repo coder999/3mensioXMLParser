@@ -55,3 +55,35 @@ if ($isLocal) {
     define('IDENTITY_COOKIE_DOMAIN', '.marktuttlemd.com');
     define('IDENTITY_COOKIE_SECURE', !$isLocal);
 }
+
+// TLS is REQUIRED for every single-auth-mariadb connection -- this path
+// must exist regardless of which branch above ran. auth.php's
+// identity_pdo() references IDENTITY_DB_SSL_CA unconditionally (both
+// PDO::MYSQL_ATTR_SSL_CA and PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT are
+// set on every connection, local or production), so this constant must
+// be defined either way, or every authenticated request fatals on an
+// undefined constant -- this was missed the first time in
+// mdproductivity's own identity_config.php (defined only inside its
+// production branch), caught in that plan's final review, and applied
+// here from the start. See mdproductivity's and marktuttlemd's own
+// htdocs/lib/identity_config.php for the same pattern.
+if ($isLocal) {
+    // 3mensio's identity DB hop for LOCAL dev targets a plain local
+    // `mariadb` container (see IDENTITY_DB_HOST above), not the
+    // relocated VPS-only single-auth-mariadb -- that DB isn't reachable
+    // from a typical local dev machine at all. This value is a
+    // placeholder only, never expected to back a real TLS handshake; it
+    // exists purely so this constant is defined and identity_pdo()
+    // doesn't fatal on an undefined one.
+    define('IDENTITY_DB_SSL_CA', dirname(dirname(dirname(__DIR__))) . '/secrets/local-single-auth-ca-placeholder.pem');
+} else {
+    // 3mensio's identity DB hop is a remote connection over the public
+    // internet (IONOS -> the VPS's public IP), not a same-Docker-network
+    // hop. single-auth-ca.pem is shipped outside the webroot by this
+    // same deploy workflow's identity-secrets step, alongside
+    // identity-db-config.php -- see .github/workflows/deploy.yml. Same
+    // path base as $secretsFile above: dirname(dirname(dirname(__DIR__)))
+    // is htdocs/admin/lib -> htdocs/admin -> htdocs -> project root,
+    // secrets/ is a sibling of htdocs/.
+    define('IDENTITY_DB_SSL_CA', dirname(dirname(dirname(__DIR__))) . '/secrets/single-auth-ca.pem');
+}

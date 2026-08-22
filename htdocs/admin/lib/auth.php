@@ -13,6 +13,14 @@ function identity_pdo(): PDO
         $pdo = new PDO($dsn, IDENTITY_DB_USER, IDENTITY_DB_PASS, [
             PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            // Required -- single-auth-mariadb enforces
+            // require_secure_transport=ON for every connection, this
+            // IONOS-to-VPS remote hop included. Options proven working in
+            // vps-infra's marktuttlemd-migration plan, and already
+            // applied to marktuttlemd's and mdproductivity's own
+            // identity_pdo() in that plan's Task 4 / Task 8.
+            PDO::MYSQL_ATTR_SSL_CA                 => IDENTITY_DB_SSL_CA,
+            PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT => true,
         ]);
         session_set_save_handler(new DbSessionHandler($pdo), true);
     }
