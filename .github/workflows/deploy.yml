@@ -2,8 +2,8 @@ name: Deploy 3mensioXMLParser to VPS
 
 on:
   workflow_dispatch:
-  # Not push-triggered yet -- stays manual until Task 7 merges
-  # vps-migration to main and this becomes the real deploy.yml.
+  push:
+    branches: [ "main" ]
 
 jobs:
   deploy:
