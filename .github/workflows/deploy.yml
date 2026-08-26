@@ -1,9 +1,10 @@
 name: Deploy 3mensioXMLParser to VPS
 
+# Manual deploys only -- nexus serves this repo's live working copy as the
+# dev site, so pushes to main are dev-server saves, not releases. Ship to
+# production from the Actions tab or `gh workflow run deploy.yml`.
 on:
   workflow_dispatch:
-  push:
-    branches: [ "main" ]
 
 jobs:
   deploy:
