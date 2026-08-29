@@ -237,6 +237,55 @@
       color: var(--muted);
     }
 
+    .whats-new {
+      margin: 22px 0 0;
+      padding: 14px 16px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.72);
+      border: 1px solid rgba(15, 118, 110, 0.16);
+    }
+
+    .whats-new > summary {
+      cursor: pointer;
+      color: var(--accent-strong);
+      font-size: 0.9rem;
+      font-weight: 600;
+      list-style: none;
+    }
+
+    .whats-new > summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .whats-new > summary::before {
+      content: "\25B8";
+      display: inline-block;
+      margin-right: 8px;
+      transition: transform 0.15s ease;
+    }
+
+    .whats-new[open] > summary::before {
+      transform: rotate(90deg);
+    }
+
+    .whats-new ul {
+      margin: 12px 0 0;
+      padding-left: 20px;
+      color: var(--muted);
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .whats-new li + li {
+      margin-top: 6px;
+    }
+
+    .whats-new-footer {
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
     .workspace {
       margin-top: 24px;
       display: grid;
@@ -1049,6 +1098,31 @@
             3mensio workflows without changing the underlying parsing behavior.  Data processing occurs locally in the browser (JavaScript) and no data is sent to any remote server.
           </p>
         </div>
+        <details class="whats-new">
+          <summary>What&rsquo;s new in v1.1 &mdash; 3mensio 10.7 mitral exports</summary>
+          <ul>
+            <li>
+              10.7 renamed the mitral annulus measurements to carry the cardiac phase. Four lines of
+              the mitral report used to come out as <code>N/A</code> against a 10.7 export, and now
+              resolve. Exports from 10.6 and earlier still render as before.
+            </li>
+            <li>
+              The mitral report states the annulus, LVOT and neo-LVOT in both diastole and systole,
+              and adds the septal-lateral and trigone-to-trigone distances, LVOT and neo-LVOT
+              perimeters and diameters, and the simulated valve&rsquo;s frame dimensions.
+            </li>
+            <li>
+              Impression line 2 is filled in from the smaller of the two neo-LVOT areas, the
+              simulated valve size, and the phase that minimum came from.
+            </li>
+          </ul>
+          <p class="whats-new-footer">
+            The mitral output looks different from reports generated before 29 August 2026. Full
+            history in the
+            <a href="https://github.com/coder999/3mensioXMLParser/blob/main/CHANGELOG.md">changelog</a>.
+          </p>
+        </details>
+
         <ul class="workflow-list">
           <li>Aortic valve</li>
           <li>Mitral valve</li>
@@ -1115,7 +1189,7 @@
 
     <footer class="footer-panel site-footer">
       <p><a href="https://github.com/coder999/3mensioXMLParser">View the GitHub repository</a></p>
-      <small>v1.0 &copy; <script type="text/javascript">document.write(new Date().getFullYear());</script> Mark Tuttle</small>
+      <small>v1.1 &copy; <script type="text/javascript">document.write(new Date().getFullYear());</script> Mark Tuttle</small>
     </footer>
   </main>
 
