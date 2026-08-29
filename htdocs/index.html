@@ -603,13 +603,44 @@
         return n ? n.textContent.trim() : "";
       }
 
-      function getMeasurement(xmlDoc, id, prefix) {
+      function findReportableValue(xmlDoc, id, prefix) {
         const node =
           xmlDoc.querySelector(`Measurement[Id="${id}"][ReportId^="${prefix}"] > ReportableValue`)
           || xmlDoc.querySelector(`Measurement[Id="${id}"] > ReportableValue`);
         if (!node) return null;
+        // 3mensio emits the Measurement element even when nothing was drawn,
+        // just without a Value attribute. Treat that as absent.
+        return (node.getAttribute("Value") || "").trim() === "" ? null : node;
+      }
+
+      // 3mensio 10.7 split the mitral annulus into phase-specific ids
+      // (MitralAnnulusAnnulusArea -> MitralAnnulusDiastoleAnnulusArea).
+      // Templates list candidates newest-first as "NewId|OldId" so one
+      // template still renders exports from either version.
+      function resolveReportableValue(xmlDoc, idSpec, prefix) {
+        for (const id of String(idSpec).split("|").map(s => s.trim()).filter(Boolean)) {
+          const node = findReportableValue(xmlDoc, id, prefix);
+          if (node) return node;
+        }
+        return null;
+      }
+
+      function numericValue(node) {
+        if (!node) return null;
         const v = parseFloat(node.getAttribute("Value"));
         return Number.isFinite(v) ? v : null;
+      }
+
+      function getMeasurement(xmlDoc, id, prefix) {
+        return numericValue(resolveReportableValue(xmlDoc, id, prefix));
+      }
+
+      // Annulus areas arrive as CentimeterSquare and LVOT/neo-LVOT areas as
+      // MillimeterSquare; the report states every area in mm2.
+      function areaInSquareMillimeters(node) {
+        const v = numericValue(node);
+        if (v == null) return null;
+        return (node.getAttribute("Unit") || "") === "CentimeterSquare" ? v * 100 : v;
       }
 
       function reportMatchesPrefix(measurementNode, prefix) {
@@ -710,51 +741,84 @@
 
       /* ---------- template renderer ---------- */
 
+      // Any "Id" below may be a "|"-separated candidate list; the first one
+      // the export actually carries a value for wins.
+      function renderToken(t, ctx, xmlDoc, prefix) {
+        // simple tokens
+        if (t === "agatston") return ctx.agatston || "N/A";
+        if (t === "coplanar") return ctx.coplanar || "N/A";
+        if (t === "comments") return ctx.comments || "N/A";
+        if (Object.prototype.hasOwnProperty.call(ctx, t)) return ctx[t] || "N/A";
+
+        // typed tokens
+        // M:Id
+        if (t.startsWith("M:")) {
+          return fmt(getMeasurement(xmlDoc, t.slice(2).trim(), prefix));
+        }
+
+        // A:Id -> area, converted to mm2 from whatever Unit the export used
+        if (t.startsWith("A:")) {
+          return fmt(areaInSquareMillimeters(resolveReportableValue(xmlDoc, t.slice(2).trim(), prefix)));
+        }
+
+        // T:Id -> the raw string Value, for non-numeric fields like Phase ("80.0%")
+        if (t.startsWith("T:")) {
+          const node = resolveReportableValue(xmlDoc, t.slice(2).trim(), prefix);
+          return node ? node.getAttribute("Value").trim() : "N/A";
+        }
+
+        // X:IdMin,IdMax
+        if (t.startsWith("X:")) {
+          const parts = t.slice(2).split(",").map(s => s.trim()).filter(Boolean);
+          if (parts.length !== 2) return "N/A";
+          const a = getMeasurement(xmlDoc, parts[0], prefix);
+          const b = getMeasurement(xmlDoc, parts[1], prefix);
+          if (a == null && b == null) return "N/A";
+          return `${fmt(a)} x ${fmt(b)}`;
+        }
+
+        // S:Id,scale
+        if (t.startsWith("S:")) {
+          const parts = t.slice(2).split(",").map(s => s.trim()).filter(Boolean);
+          if (parts.length !== 2) return "N/A";
+          const scale = parseFloat(parts[1]);
+          const v = getMeasurement(xmlDoc, parts[0], prefix);
+          if (v == null || !Number.isFinite(scale)) return "N/A";
+          return fmt(v * scale);
+        }
+
+        // unknown token -> leave as-is (or return N/A)
+        return "N/A";
+      }
+
       function renderTemplate(template, ctx, xmlDoc, prefix) {
         // Simple placeholders: {{agatston}}, {{coplanar}}, {{comments}}
         // Measurement placeholders:
         //   {{M:Id}} -> fmt(measurement)
-        //   {{X:IdMin,IdMax}} -> "fmt(min) x fmt(max)"
+        //   {{A:Id}} -> fmt(area in mm2)
+        //   {{T:Id}} -> raw string value
+        //   {{X:IdMin,IdMax}} -> "fmt(min) x fmt(max)", or "N/A" if both are absent
         //   {{S:Id,scale}} -> fmt(measurement * scale)
-        return template.replace(/\{\{([^}]+)\}\}/g, (_, token) => {
-          const t = token.trim();
+        // A line led by {{?}} is dropped entirely when every placeholder on it
+        // came back N/A, so optional analyses (virtual frame, unmeasured phase)
+        // leave no empty scaffolding behind.
+        return template.split("\n").map(line => {
+          const optional = line.includes("{{?}}");
+          let placeholders = 0;
+          let missing = 0;
 
-          // simple tokens
-          if (t === "agatston") return ctx.agatston || "N/A";
-          if (t === "coplanar") return ctx.coplanar || "N/A";
-          if (t === "comments") return ctx.comments || "N/A";
-          if (Object.prototype.hasOwnProperty.call(ctx, t)) return ctx[t] || "N/A";
+          const rendered = line.replace(/\{\{([^}]+)\}\}/g, (_, token) => {
+            const t = token.trim();
+            if (t === "?") return "";
+            const value = renderToken(t, ctx, xmlDoc, prefix);
+            placeholders += 1;
+            if (value === "N/A") missing += 1;
+            return value;
+          });
 
-          // typed tokens
-          // M:Id
-          if (t.startsWith("M:")) {
-            const id = t.slice(2).trim();
-            return fmt(getMeasurement(xmlDoc, id, prefix));
-          }
-
-          // X:IdMin,IdMax
-          if (t.startsWith("X:")) {
-            const parts = t.slice(2).split(",").map(s => s.trim()).filter(Boolean);
-            if (parts.length !== 2) return "N/A";
-            const a = fmt(getMeasurement(xmlDoc, parts[0], prefix));
-            const b = fmt(getMeasurement(xmlDoc, parts[1], prefix));
-            return `${a} x ${b}`;
-          }
-
-          // S:Id,scale
-          if (t.startsWith("S:")) {
-            const parts = t.slice(2).split(",").map(s => s.trim()).filter(Boolean);
-            if (parts.length !== 2) return "N/A";
-            const id = parts[0];
-            const scale = parseFloat(parts[1]);
-            const v = getMeasurement(xmlDoc, id, prefix);
-            if (v == null || !Number.isFinite(scale)) return "N/A";
-            return fmt(v * scale);
-          }
-
-          // unknown token -> leave as-is (or return N/A)
-          return "N/A";
-        });
+          if (optional && placeholders > 0 && missing === placeholders) return null;
+          return rendered;
+        }).filter(line => line !== null).join("\n");
       }
 
       function stripIliofemoralSection(reportText) {
@@ -835,10 +899,43 @@
         setReport(report);
       }
 
+      // The impression quotes the smaller of the two neo-LVOT areas, since that
+      // is the phase that drives outflow-obstruction risk.
+      function smallestNeoLvot(xmlDoc, prefix) {
+        const candidates = [
+          { phase: "diastolic", id: "NeoLvotDimensionsEDArea" },
+          { phase: "systolic", id: "NeoLvotDimensionsESArea" }
+        ];
+
+        let smallest = null;
+        for (const candidate of candidates) {
+          const area = areaInSquareMillimeters(resolveReportableValue(xmlDoc, candidate.id, prefix));
+          if (area == null) continue;
+          if (smallest == null || area < smallest.area) smallest = { area, phase: candidate.phase };
+        }
+        return smallest;
+      }
+
+      // Device sizes are whole millimetres; "29 mm valve" not "29.0 mm valve".
+      function fmtDeviceSize(v) {
+        if (v == null) return null;
+        return Number.isInteger(v) ? String(v) : v.toFixed(1);
+      }
+
       function renderMitral(xmlDoc) {
         const prefix = "MitralValve";
         const comments = getText(xmlDoc, "Fields > Comments") || getText(xmlDoc, "Comments");
-        const ctx = { comments, agatston: "", coplanar: "" };
+        const neoLvot = smallestNeoLvot(xmlDoc, prefix);
+        const valveSize = fmtDeviceSize(getMeasurement(xmlDoc, "VirtualFrameInflowDiameter", prefix));
+        const ctx = {
+          comments,
+          agatston: "",
+          coplanar: "",
+          // "***" leaves the impression a fill-in prompt when the export is missing the value.
+          neolvot_min_area: neoLvot ? fmt(neoLvot.area) : "***",
+          neolvot_min_phase: neoLvot ? neoLvot.phase : "***",
+          neolvot_valve_size: valveSize || "***"
+        };
         setReport(renderTemplate(templates.MitralValve, ctx, xmlDoc, prefix));
       }
 

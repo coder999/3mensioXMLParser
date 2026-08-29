@@ -2,7 +2,7 @@
 
 <strong>IMPRESSION:</strong>
 1.	The mitral valve is ***.
-2.	The neoLVOT is *** with *** THV modeled.
+2.	The minimum neoLVOT area is {{neolvot_min_area}} mm<sup>2</sup> with a {{neolvot_valve_size}} mm valve simulated in the {{neolvot_min_phase}} phase.
 3.	No significant coronary artery disease is appreciated.
 
 <strong>HISTORY:</strong>
@@ -25,14 +25,30 @@ Reconstructed full field-of-view images were reviewed for incidental findings.
 The aortic valve is {bicuspid/trileaflet:108752}.
 
 <u>Mitral valve complex:</u>
-Mitral valve area: {{S:MitralAnnulusAnnulusArea,100}} mm<sup>2</sup>
-Mitral valve perimeter: {{M:MitralAnnulusPerimeterTotal}} mm
-Commissure-to-commissure distance: {{M:MitralAnnulusCustomDistance}} mm
-Aorto-Mitral Angle: {{M:MitralAnnulusAorticMitralAngle}} degrees
-NeoLVOT area in diastole: {{M:NeoLvotDimensionsEDArea}} mm<sup>2</sup>
-NeoLVOT area in systole: {{M:NeoLvotDimensionsESArea}} mm<sup>2</sup>
+{{?}}Reconstruction phases: diastole {{T:MitralAnnulusDiastolePhase|LvotDimensionsEDPhase}}, systole {{T:MitralAnnulusSystolePhase|LvotDimensionsESPhase}} of the R-R interval.
+
+<em>Mitral annulus</em>
+Area: {{A:MitralAnnulusDiastoleAnnulusArea|MitralAnnulusAnnulusArea}} mm<sup>2</sup> (diastole) / {{A:MitralAnnulusSystoleAnnulusArea}} mm<sup>2</sup> (systole)
+Perimeter: {{M:MitralAnnulusDiastolePerimeterTotal|MitralAnnulusPerimeterTotal}} mm (diastole) / {{M:MitralAnnulusSystolePerimeterTotal}} mm (systole)
+Septal-lateral (AP) distance: {{M:MitralAnnulusDiastoleAPDistance|MitralAnnulusAPDistance}} mm (diastole) / {{M:MitralAnnulusSystoleAPDistance}} mm (systole)
+Commissure-to-commissure distance: {{M:MitralAnnulusDiastoleCustomDistance|MitralAnnulusCustomDistance}} mm (diastole) / {{M:MitralAnnulusSystoleCustomDistance}} mm (systole)
+Trigone-to-trigone distance: {{M:MitralAnnulusDiastoleTTDistance|MitralAnnulusTTDistance}} mm (diastole) / {{M:MitralAnnulusSystoleTTDistance}} mm (systole)
+Aorto-mitral angle: {{M:MitralAnnulusDiastoleAorticMitralAngle|MitralAnnulusAorticMitralAngle}} degrees (diastole) / {{M:MitralAnnulusSystoleAorticMitralAngle}} degrees (systole)
+{{?}}Annulus center to LV apex: {{M:MitralAnnulusDiastoleToApexLength}} mm (diastole) / {{M:MitralAnnulusSystoleToApexLength}} mm (systole)
+
+<em>LVOT</em>
+Area: {{A:LvotDimensionsEDArea}} mm<sup>2</sup> (diastole) / {{A:LvotDimensionsESArea}} mm<sup>2</sup> (systole)
+Perimeter: {{M:LvotDimensionsEDPerimeter}} mm (diastole) / {{M:LvotDimensionsESPerimeter}} mm (systole)
+Diameters (min x max): {{X:LvotDimensionsEDMinDiameter,LvotDimensionsEDMaxDiameter}} mm (diastole) / {{X:LvotDimensionsESMinDiameter,LvotDimensionsESMaxDiameter}} mm (systole)
+
+<em>Neo-LVOT (with the simulated valve in place)</em>
+Area: {{A:NeoLvotDimensionsEDArea}} mm<sup>2</sup> (diastole) / {{A:NeoLvotDimensionsESArea}} mm<sup>2</sup> (systole)
+Perimeter: {{M:NeoLvotDimensionsEDPerimeter}} mm (diastole) / {{M:NeoLvotDimensionsESPerimeter}} mm (systole)
+Diameters (min x max): {{X:NeoLvotDimensionsEDMinDiameter,NeoLvotDimensionsEDMaxDiameter}} mm (diastole) / {{X:NeoLvotDimensionsESMinDiameter,NeoLvotDimensionsESMaxDiameter}} mm (systole)
 
 Simulated transcatheter heart valve: ***
+{{?}}Modeled frame: {{M:VirtualFrameInflowDiameter}} mm inflow x {{M:VirtualFrameOutflowDiameter}} mm outflow, {{M:VirtualFrameDeviceHeight}} mm height
+{{?}}Modeled frame flange diameter: {{M:VirtualFrameFlangeDiameter}} mm
 
 <u>Coronary arteries:</u>
  
