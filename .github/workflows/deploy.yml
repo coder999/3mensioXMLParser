@@ -174,17 +174,36 @@ jobs:
           # Finding 1: runs 32575258603 and 32576430234 both black-holed
           # permanently on the old --resolve/-k form, regardless of DNS
           # state.)
-          curl -sf https://3mensio.marktuttlemd.com/healthz.php | grep -q OK && echo "Deploy verified: healthz OK"
-          # Assert the tag is actually present, not merely that healthz
-          # responds. The public homepage (htdocs/index.html) is static --
-          # it has its own hardcoded gtag snippet, not rendered by this
+          #
+          # Retries, not a single shot: the "Recreate containers so .env
+          # changes take effect" step above force-recreates nginx, and
+          # Traefik's docker provider only re-includes it in routing
+          # after nginx's own Docker healthcheck completes its first
+          # pass -- same window, same fix as
+          # clinicaltrials/.github/workflows/deploy.yml's Verify step,
+          # see that file's comment for the full mechanism. A single-shot
+          # version of this exact check false-negatived on dash's
+          # 2026-09-02 deploy; the site was verifiably fine a minute
+          # later.
+          #
+          # The public homepage (htdocs/index.html) is static -- it has
+          # its own hardcoded gtag snippet, not rendered by this
           # migration's Tag::render() (GA4 migration Task 3, Step 5: a
           # static page cannot call it; deferred, see task-3-report.md).
           # This assertion still earns its keep: it catches a regression
           # if that hardcoded snippet or its measurement ID is ever
-          # dropped, same as diaslab's PHP-rendered equivalent.
-          if ! curl -sf --max-time 20 https://3mensio.marktuttlemd.com/ | grep -q 'G-8LDBKP7S8S'; then
-            echo "FAIL: homepage rendered but the GA measurement ID is absent." >&2
-            exit 1
-          fi
-          echo "Deploy verified: GA measurement ID present on homepage"
+          # dropped, same as diaslab's PHP-rendered equivalent. No
+          # separate homepage-renders-completely check exists here (the
+          # page is static, unlike the PHP sites), so this loop only
+          # covers healthz + the GA ID.
+          for i in $(seq 1 10); do
+            if page="$(curl -sf https://3mensio.marktuttlemd.com/)" \
+               && echo "$page" | grep -q 'G-8LDBKP7S8S' \
+               && curl -sf https://3mensio.marktuttlemd.com/healthz.php | grep -q OK; then
+              echo "Deploy verified: healthz OK, GA measurement ID present on homepage"
+              exit 0
+            fi
+            sleep 3
+          done
+          echo "Deploy FAILED verification after 10 attempts (30s): expected a healthy healthz.php and GA measurement ID G-8LDBKP7S8S present on the homepage. Likely cause: the hardcoded gtag snippet or its ID was dropped from htdocs/index.html -- not the recreate-routing window, which this loop already absorbs." >&2
+          exit 1
