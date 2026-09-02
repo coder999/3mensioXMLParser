@@ -38,7 +38,7 @@ if ($isLocal) {
     // unconditionally correct in both web and CLI contexts, on this VPS
     // or anywhere else. Same fix already applied in mdproductivity's,
     // marktuttlemd's, and single-auth's own config files.
-    $secretsFile = dirname(dirname(dirname(__DIR__))) . '/identity-secrets/identity-db-config.php';
+    $secretsFile = dirname(dirname(dirname(__DIR__))) . '/secrets/identity-db-config.php';
     $secrets = is_file($secretsFile) ? require $secretsFile : [];
 
     $need = function (string $key) use ($secrets, $secretsFile) {
@@ -76,13 +76,8 @@ if ($isLocal) {
     // from a typical local dev machine at all. This value is a
     // placeholder only, never expected to back a real TLS handshake; it
     // exists purely so this constant is defined and identity_pdo()
-    // doesn't fatal on an undefined one. Container path renamed from
-    // /var/www/secrets to /var/www/identity-secrets (GA4 migration
-    // Task 3) along with the production branch below -- /var/www/secrets
-    // is now the fleet-wide GA reader mount, which is empty on local dev
-    // (no such host directory on nexus), so this constant would silently
-    // point at a file that no longer exists if left unrenamed.
-    define('IDENTITY_DB_SSL_CA', dirname(dirname(dirname(__DIR__))) . '/identity-secrets/local-single-auth-ca-placeholder.pem');
+    // doesn't fatal on an undefined one.
+    define('IDENTITY_DB_SSL_CA', dirname(dirname(dirname(__DIR__))) . '/secrets/local-single-auth-ca-placeholder.pem');
 } else {
     // 3mensio's identity DB hop is now a same-Docker-network hop to
     // single-auth-mariadb over the `identity` network (see
@@ -95,10 +90,7 @@ if ($isLocal) {
     // identity-secrets step, alongside identity-db-config.php -- see
     // .github/workflows/deploy.yml. Same path base as $secretsFile
     // above: dirname(dirname(dirname(__DIR__))) is htdocs/admin/lib ->
-    // htdocs/admin -> htdocs -> project root, identity-secrets/ is a
-    // sibling of htdocs/. Container path renamed from /var/www/secrets
-    // to /var/www/identity-secrets (GA4 migration Task 3) to make room
-    // for the fleet-wide GA reader credential mount, which now owns
-    // /var/www/secrets -- see vps-infra/sites/mensioxml/compose.yml.
-    define('IDENTITY_DB_SSL_CA', dirname(dirname(dirname(__DIR__))) . '/identity-secrets/single-auth-ca.pem');
+    // htdocs/admin -> htdocs -> project root, secrets/ is a sibling of
+    // htdocs/.
+    define('IDENTITY_DB_SSL_CA', dirname(dirname(dirname(__DIR__))) . '/secrets/single-auth-ca.pem');
 }

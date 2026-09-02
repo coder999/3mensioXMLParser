@@ -105,7 +105,7 @@ jobs:
           APP_ENV=production
           GA4_MEASUREMENT_ID=${GA4_MEASUREMENT_ID}
           GA4_PROPERTY_ID=${GA4_PROPERTY_ID}
-          GA_SERVICE_ACCOUNT_FILE=/var/www/secrets/reader.json
+          GA_SERVICE_ACCOUNT_FILE=/var/www/ga-secrets/reader.json
           EOF
           ssh -i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes \
             mensioxml-deploy@vps-4b80346f.vps.ovh.us put-env < /tmp/deploy.env | tee /tmp/put-env.out

@@ -253,7 +253,7 @@ admin_header('Dashboard', 'dashboard');
   <div class="card" style="margin-bottom:16px;">
     <h2>Google Analytics</h2>
     <div class="flash flash-err" style="margin:0 0 10px;">Couldn't load analytics: <?= h($gaError) ?></div>
-    <p class="hint">Check the <code class="k">GA4_PROPERTY_ID</code> GitHub Actions variable, confirm <code class="k">/var/www/secrets/reader.json</code> is mounted and readable, and confirm the service account has Viewer access on the GA4 property.</p>
+    <p class="hint">Check the <code class="k">GA4_PROPERTY_ID</code> GitHub Actions variable, confirm <code class="k">/var/www/ga-secrets/reader.json</code> is mounted and readable, and confirm the service account has Viewer access on the GA4 property.</p>
   </div>
 <?php else: ?>
   <div class="card" style="margin-bottom:16px;">
