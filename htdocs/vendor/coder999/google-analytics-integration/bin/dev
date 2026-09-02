@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Dev wrapper. nexus has no PHP and no Composer on the host (verified
+# 2026-09-02) -- everything runs in containers. vps-phpfpm:8.4 is the same
+# image the sites run, so the test environment matches production.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+COMPOSER_RUN=(docker run --rm -u "$(id -u):$(id -g)" -v "$PWD":/app -w /app -e COMPOSER_HOME=/tmp/composer composer:2)
+PHP_RUN=(docker run --rm -v "$PWD":/app -w /app vps-phpfpm:8.4 php)
+
+case "${1:-}" in
+  install)  shift; exec "${COMPOSER_RUN[@]}" install --no-interaction "$@" ;;
+  composer) shift; exec "${COMPOSER_RUN[@]}" "$@" ;;
+  test)     shift; exec "${PHP_RUN[@]}" vendor/bin/phpunit "$@" ;;
+  php)      shift; exec "${PHP_RUN[@]}" "$@" ;;
+  *) echo "usage: bin/dev {install|composer|test|php} [args]" >&2; exit 1 ;;
+esac

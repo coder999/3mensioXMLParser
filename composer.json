@@ -2,12 +2,17 @@
     "name": "coder999/3mensioxmlparser",
     "type": "project",
     "require": {
-        "coder999/single-auth": "^0.2.0"
+        "coder999/single-auth": "^0.2.0",
+        "coder999/google-analytics-integration": "^0.1.0"
     },
     "repositories": [
         {
             "type": "vcs",
             "url": "https://github.com/coder999/single-auth"
+        },
+        {
+            "type": "vcs",
+            "url": "https://github.com/coder999/google-analytics-integration"
         }
     ],
     "config": {

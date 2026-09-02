@@ -253,7 +253,7 @@ admin_header('Dashboard', 'dashboard');
   <div class="card" style="margin-bottom:16px;">
     <h2>Google Analytics</h2>
     <div class="flash flash-err" style="margin:0 0 10px;">Couldn't load analytics: <?= h($gaError) ?></div>
-    <p class="hint">Check the <code class="k">GA4_PROPERTY_ID</code> and <code class="k">GA_SERVICE_ACCOUNT_JSON</code> GitHub Actions secrets and confirm the service account has Viewer access on the GA4 property.</p>
+    <p class="hint">Check the <code class="k">GA4_PROPERTY_ID</code> GitHub Actions variable, confirm <code class="k">/var/www/secrets/reader.json</code> is mounted and readable, and confirm the service account has Viewer access on the GA4 property.</p>
   </div>
 <?php else: ?>
   <div class="card" style="margin-bottom:16px;">
@@ -261,9 +261,8 @@ admin_header('Dashboard', 'dashboard');
     <p class="hint">Once connected, this dashboard shows unique users per day, sessions, page views, and top pages.</p>
     <ol class="steps">
       <li>In <a href="https://analytics.google.com/" target="_blank" rel="noopener">Google Analytics</a>, find the GA4 property for 3mensio.marktuttlemd.com (measurement ID <code class="k">G-8LDBKP7S8S</code>) and note its numeric <b>Property ID</b> (Admin → Property settings).</li>
-      <li>In <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">Google Cloud Console</a>, create a project, enable the <b>Google Analytics Data API</b>, and create a <b>service account</b> (no roles needed). Create a <b>JSON key</b> for it and download it.</li>
-      <li>Back in Google Analytics: Admin → Property access management → add the service account's email address with <b>Viewer</b> access.</li>
-      <li>Set the <code class="k">GA4_PROPERTY_ID</code> and <code class="k">GA_SERVICE_ACCOUNT_JSON</code> secrets on the <code class="k">3mensioXMLParser</code> GitHub repo and redeploy.</li>
+      <li>Confirm the fleet-wide reader service account (Admin → Property access management) has <b>Viewer</b> access on this property. The credential itself lives once at <code class="k">/etc/secrets/ga/reader.json</code> on the VPS and is mounted read-only into every site — it is not a per-site secret.</li>
+      <li>Set the <code class="k">GA4_PROPERTY_ID</code> and <code class="k">GA4_MEASUREMENT_ID</code> GitHub Actions variables on the <code class="k">3mensioXMLParser</code> repo and redeploy.</li>
     </ol>
   </div>
 <?php endif; ?>

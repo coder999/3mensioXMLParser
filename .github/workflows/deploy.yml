@@ -21,7 +21,7 @@ jobs:
           chmod 600 "$HOME/.ssh/deploy_key"
           ssh-keyscan vps-4b80346f.vps.ovh.us >> "$HOME/.ssh/known_hosts"
 
-      - name: Render identity + GA secrets files
+      - name: Render identity secrets file
         shell: bash
         env:
           SINGLE_AUTH_DB_HOST: ${{ secrets.VPS_SINGLE_AUTH_DB_HOST }}
@@ -30,11 +30,18 @@ jobs:
           SINGLE_AUTH_DB_USER: ${{ secrets.VPS_SINGLE_AUTH_DB_USER }}
           SINGLE_AUTH_DB_PASS: ${{ secrets.VPS_SINGLE_AUTH_DB_PASS }}
           SINGLE_AUTH_CA_CERT: ${{ secrets.SINGLE_AUTH_CA_CERT }}
-          GA4_PROPERTY_ID: ${{ secrets.GA4_PROPERTY_ID }}
-          GA_SERVICE_ACCOUNT_JSON: ${{ secrets.GA_SERVICE_ACCOUNT_JSON }}
         run: |
           set -euo pipefail
-          : "${SINGLE_AUTH_DB_HOST:?}" "${SINGLE_AUTH_DB_PORT:?}" "${SINGLE_AUTH_DB_NAME:?}" "${SINGLE_AUTH_DB_USER:?}" "${SINGLE_AUTH_DB_PASS:?}" "${SINGLE_AUTH_CA_CERT:?}" "${GA4_PROPERTY_ID:?}" "${GA_SERVICE_ACCOUNT_JSON:?}"
+          # GA4_PROPERTY_ID / GA_SERVICE_ACCOUNT_JSON and the
+          # ga-config.php.template render used to happen here too (GitHub
+          # secrets rendered to secrets/ga-config.php at deploy time). GA4
+          # migration Task 3 replaced that whole mechanism: GA4_PROPERTY_ID
+          # is now a `vars.*` value rendered into .env below, and the
+          # credential itself is the fleet-wide reader.json bind-mounted
+          # read-only from /etc/secrets/ga on the VPS (compose.yml) --
+          # never a per-repo secret at all, so there is nothing left to
+          # render for GA here.
+          : "${SINGLE_AUTH_DB_HOST:?}" "${SINGLE_AUTH_DB_PORT:?}" "${SINGLE_AUTH_DB_NAME:?}" "${SINGLE_AUTH_DB_USER:?}" "${SINGLE_AUTH_DB_PASS:?}" "${SINGLE_AUTH_CA_CERT:?}"
           command -v envsubst >/dev/null || (sudo apt-get update && sudo apt-get install -y gettext-base)
           mkdir -p /tmp/mensioxml-secrets
 
@@ -47,12 +54,6 @@ jobs:
           export SINGLE_AUTH_DB_USER_B64 SINGLE_AUTH_DB_PASS_B64
           envsubst '$SINGLE_AUTH_DB_HOST_B64 $SINGLE_AUTH_DB_PORT_B64 $SINGLE_AUTH_DB_NAME_B64 $SINGLE_AUTH_DB_USER_B64 $SINGLE_AUTH_DB_PASS_B64' \
             < deploy/secrets/identity-db-config.php.template > /tmp/mensioxml-secrets/identity-db-config.php
-
-          GA4_PROPERTY_ID_B64="$(printf '%s' "$GA4_PROPERTY_ID" | base64 -w0)"
-          GA_SERVICE_ACCOUNT_JSON_B64="$(printf '%s' "$GA_SERVICE_ACCOUNT_JSON" | base64 -w0)"
-          export GA4_PROPERTY_ID_B64 GA_SERVICE_ACCOUNT_JSON_B64
-          envsubst '$GA4_PROPERTY_ID_B64 $GA_SERVICE_ACCOUNT_JSON_B64' \
-            < deploy/secrets/ga-config.php.template > /tmp/mensioxml-secrets/ga-config.php
 
           printf '%s\n' "$SINGLE_AUTH_CA_CERT" > /tmp/mensioxml-secrets/single-auth-ca.pem
 
@@ -83,6 +84,41 @@ jobs:
             /tmp/mensioxml-secrets/ \
             mensioxml-deploy@vps-4b80346f.vps.ovh.us:secrets/
 
+      - name: Render .env and ship it
+        id: putenv
+        shell: bash
+        env:
+          GA4_MEASUREMENT_ID: "${{ vars.GA4_MEASUREMENT_ID }}"
+          GA4_PROPERTY_ID: "${{ vars.GA4_PROPERTY_ID }}"
+        run: |
+          set -euo pipefail
+          # This site has no database -- unlike diaslab's version of this
+          # step, there is no DB_*/MYSQL_*/SMTP_* content to render here,
+          # only the GA4 keys (GA4 migration Task 3). GA4_MEASUREMENT_ID
+          # and GA4_PROPERTY_ID are GitHub *variables*, not secrets --
+          # deliberately, they aren't sensitive. GA_SERVICE_ACCOUNT_FILE is
+          # a fixed path, not a credential -- it points at the fleet-wide
+          # reader.json bind-mounted read-only from /etc/secrets/ga on the
+          # VPS (see compose.yml); nothing here ever holds the credential
+          # itself.
+          cat > /tmp/deploy.env <<EOF
+          APP_ENV=production
+          GA4_MEASUREMENT_ID=${GA4_MEASUREMENT_ID}
+          GA4_PROPERTY_ID=${GA4_PROPERTY_ID}
+          GA_SERVICE_ACCOUNT_FILE=/var/www/secrets/reader.json
+          EOF
+          ssh -i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes \
+            mensioxml-deploy@vps-4b80346f.vps.ovh.us put-env < /tmp/deploy.env | tee /tmp/put-env.out
+          rm -f /tmp/deploy.env
+          # put-env.sh reports whether .env actually changed. Only a real
+          # change needs a container recreate (docker reads env_file at
+          # create time only), and a recreate costs a few seconds of 502
+          # that trips uptime monitoring -- so gate on this rather than
+          # recreating on every code-only deploy.
+          grep -q '^ENV_CHANGED=1$' /tmp/put-env.out \
+            && echo "env_changed=true"  >> "$GITHUB_OUTPUT" \
+            || echo "env_changed=false" >> "$GITHUB_OUTPUT"
+
       - name: Deploy code via rsync
         shell: bash
         run: |
@@ -93,6 +129,36 @@ jobs:
             -e "ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes" \
             htdocs/ \
             mensioxml-deploy@vps-4b80346f.vps.ovh.us:htdocs/
+
+      - name: Recreate containers so .env changes take effect
+        if: steps.putenv.outputs.env_changed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          # docker reads env_file ONLY when it CREATES a container, so the
+          # put-env step above updates .env on disk while the running
+          # php-fpm keeps its frozen copy -- a NEWLY ADDED variable never
+          # reaches the app, and the symptom looks like an application bug
+          # (correct value in .env, empty getenv() in the container). This
+          # workflow had no recreate step at all before GA4 migration Task
+          # 3 (verified 2026-09-02, `grep -c ENV_CHANGED` on the pre-change
+          # file returned 0): without it, the GA keys would never have
+          # reached the running process and the deploy would still report
+          # success.
+          #
+          # `redeploy` is the site's existing forced command
+          # (bin/redeploy.sh, already sudoers-permitted); it does
+          # `docker compose up -d --force-recreate --wait` on php-fpm and
+          # reloads nginx. `docker restart` would NOT fix this: it reuses
+          # the same container and therefore the same frozen environment.
+          #
+          # This site has no database and no session store of its own --
+          # single-auth sessions live in single_auth.sessions via
+          # DbSessionHandler (see identity_config.php/auth.php), not on
+          # this container's filesystem, so a recreate does not log anyone
+          # out. Cost is a few seconds of 502.
+          ssh -i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes \
+            mensioxml-deploy@vps-4b80346f.vps.ovh.us redeploy
 
       - name: Verify
         shell: bash
@@ -109,3 +175,16 @@ jobs:
           # permanently on the old --resolve/-k form, regardless of DNS
           # state.)
           curl -sf https://3mensio.marktuttlemd.com/healthz.php | grep -q OK && echo "Deploy verified: healthz OK"
+          # Assert the tag is actually present, not merely that healthz
+          # responds. The public homepage (htdocs/index.html) is static --
+          # it has its own hardcoded gtag snippet, not rendered by this
+          # migration's Tag::render() (GA4 migration Task 3, Step 5: a
+          # static page cannot call it; deferred, see task-3-report.md).
+          # This assertion still earns its keep: it catches a regression
+          # if that hardcoded snippet or its measurement ID is ever
+          # dropped, same as diaslab's PHP-rendered equivalent.
+          if ! curl -sf --max-time 20 https://3mensio.marktuttlemd.com/ | grep -q 'G-8LDBKP7S8S'; then
+            echo "FAIL: homepage rendered but the GA measurement ID is absent." >&2
+            exit 1
+          fi
+          echo "Deploy verified: GA measurement ID present on homepage"

@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
         'name' => 'coder999/3mensioxmlparser',
-        'pretty_version' => '1.0.0+no-version-set',
-        'version' => '1.0.0.0',
-        'reference' => null,
+        'pretty_version' => 'dev-main',
+        'version' => 'dev-main',
+        'reference' => 'ab0b2b9c8cf9dccd877ae5e3208ea2c44eea8eb1',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../../',
         'aliases' => array(),
@@ -11,11 +11,20 @@
     ),
     'versions' => array(
         'coder999/3mensioxmlparser' => array(
-            'pretty_version' => '1.0.0+no-version-set',
-            'version' => '1.0.0.0',
-            'reference' => null,
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => 'ab0b2b9c8cf9dccd877ae5e3208ea2c44eea8eb1',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../../',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'coder999/google-analytics-integration' => array(
+            'pretty_version' => 'v0.1.0',
+            'version' => '0.1.0.0',
+            'reference' => 'b1048a66a55ca14b0a2a9fb8d679a0c0d9c2df99',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../coder999/google-analytics-integration',
             'aliases' => array(),
             'dev_requirement' => false,
         ),

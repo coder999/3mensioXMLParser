@@ -10,6 +10,7 @@ class ComposerStaticInitcab87d73213803a63717171b2c287d01
         'M' =>
         array (
             'Mtmd\\SingleAuth\\' => 16,
+            'Mtmd\\Ga4\\' => 9,
         ),
     );
 
@@ -17,6 +18,10 @@ class ComposerStaticInitcab87d73213803a63717171b2c287d01
         'Mtmd\\SingleAuth\\' =>
         array (
             0 => __DIR__ . '/..' . '/coder999/single-auth/src',
+        ),
+        'Mtmd\\Ga4\\' =>
+        array (
+            0 => __DIR__ . '/..' . '/coder999/google-analytics-integration/src',
         ),
     );
 
