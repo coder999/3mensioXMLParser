@@ -7,18 +7,15 @@ namespace Composer\Autoload;
 class ComposerStaticInitcab87d73213803a63717171b2c287d01
 {
     public static $prefixLengthsPsr4 = array (
-        'M' =>
-        array (
-            'Mtmd\\SingleAuth\\' => 16,
-        ),
         'C' =>
         array (
+            'Coder999\\SingleAuth\\' => 20,
             'Coder999\\Ga4\\' => 13,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'Mtmd\\SingleAuth\\' =>
+        'Coder999\\SingleAuth\\' =>
         array (
             0 => __DIR__ . '/..' . '/coder999/single-auth/src',
         ),

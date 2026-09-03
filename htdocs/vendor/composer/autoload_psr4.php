@@ -6,6 +6,6 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname(dirname($vendorDir));
 
 return array(
-    'Mtmd\\SingleAuth\\' => array($vendorDir . '/coder999/single-auth/src'),
+    'Coder999\\SingleAuth\\' => array($vendorDir . '/coder999/single-auth/src'),
     'Coder999\\Ga4\\' => array($vendorDir . '/coder999/google-analytics-integration/src'),
 );

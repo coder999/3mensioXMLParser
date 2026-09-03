@@ -2,8 +2,8 @@
 require_once __DIR__ . '/../../vendor/autoload.php';
 require_once __DIR__ . '/identity_config.php';
 
-use Mtmd\SingleAuth\Auth;
-use Mtmd\SingleAuth\DbSessionHandler;
+use Coder999\SingleAuth\Auth;
+use Coder999\SingleAuth\DbSessionHandler;
 
 function identity_pdo(): PDO
 {
