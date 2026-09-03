@@ -17,9 +17,9 @@ if (!$loaded) {
     exit(1);
 }
 
-use Mtmd\Ga4\Cache\FileCache;
-use Mtmd\Ga4\Cli;
-use Mtmd\Ga4\Http\CurlHttp;
+use Coder999\Ga4\Cache\FileCache;
+use Coder999\Ga4\Cli;
+use Coder999\Ga4\Http\CurlHttp;
 
 $home = $_SERVER['HOME'] ?? getenv('HOME') ?: '';
 $cacheDir = getenv('GA_CACHE_DIR') ?: ($home !== '' ? $home . '/.cache/ga4-provision' : sys_get_temp_dir() . '/ga4-provision-' . getmypid());

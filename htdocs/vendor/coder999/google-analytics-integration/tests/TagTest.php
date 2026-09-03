@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mtmd\Ga4\Tests;
+namespace Coder999\Ga4\Tests;
 
 use InvalidArgumentException;
-use Mtmd\Ga4\Tag;
+use Coder999\Ga4\Tag;
 use PHPUnit\Framework\TestCase;
 
 final class TagTest extends TestCase

@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mtmd\Ga4\Tests;
+namespace Coder999\Ga4\Tests;
 
-use Mtmd\Ga4\Tests\Support\FakeHttp;
+use Coder999\Ga4\Tests\Support\FakeHttp;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

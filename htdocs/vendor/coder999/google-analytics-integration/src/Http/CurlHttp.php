@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mtmd\Ga4\Http;
+namespace Coder999\Ga4\Http;
 
-use Mtmd\Ga4\HttpInterface;
+use Coder999\Ga4\HttpInterface;
 use RuntimeException;
 
 /**

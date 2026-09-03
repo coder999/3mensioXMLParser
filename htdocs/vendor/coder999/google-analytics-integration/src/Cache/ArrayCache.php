@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mtmd\Ga4\Cache;
+namespace Coder999\Ga4\Cache;
 
-use Mtmd\Ga4\CacheInterface;
+use Coder999\Ga4\CacheInterface;
 
 final class ArrayCache implements CacheInterface
 {

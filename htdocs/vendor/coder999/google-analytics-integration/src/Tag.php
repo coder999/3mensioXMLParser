@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Mtmd\Ga4;
+namespace Coder999\Ga4;
 
 use InvalidArgumentException;
 

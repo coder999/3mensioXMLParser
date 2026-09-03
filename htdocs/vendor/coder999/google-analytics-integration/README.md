@@ -29,13 +29,13 @@ Then run `composer install`.
 This is the full construction chain a site's admin page needs — the same shape every adapter should copy.
 
 ```php
-use Mtmd\Ga4\Cache\FileCache;
-use Mtmd\Ga4\Client;
-use Mtmd\Ga4\Credentials;
-use Mtmd\Ga4\Dashboard;
-use Mtmd\Ga4\Http\CurlHttp;
-use Mtmd\Ga4\ServiceAccount;
-use Mtmd\Ga4\TokenSource;
+use Coder999\Ga4\Cache\FileCache;
+use Coder999\Ga4\Client;
+use Coder999\Ga4\Credentials;
+use Coder999\Ga4\Dashboard;
+use Coder999\Ga4\Http\CurlHttp;
+use Coder999\Ga4\ServiceAccount;
+use Coder999\Ga4\TokenSource;
 
 // 1. Decode the service-account key (the JSON Google gives you for the
 //    service account, not the GA4 measurement ID or property ID).

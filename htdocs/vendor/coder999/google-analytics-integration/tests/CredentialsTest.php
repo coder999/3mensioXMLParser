@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace Mtmd\Ga4\Tests;
+namespace Coder999\Ga4\Tests;
 
 use InvalidArgumentException;
-use Mtmd\Ga4\Credentials;
-use Mtmd\Ga4\ServiceAccount;
+use Coder999\Ga4\Credentials;
+use Coder999\Ga4\ServiceAccount;
 use PHPUnit\Framework\TestCase;
 
 final class CredentialsTest extends TestCase

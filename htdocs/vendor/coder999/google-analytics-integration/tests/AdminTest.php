@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-namespace Mtmd\Ga4\Tests;
+namespace Coder999\Ga4\Tests;
 
-use Mtmd\Ga4\Admin;
-use Mtmd\Ga4\Cache\ArrayCache;
-use Mtmd\Ga4\ServiceAccount;
-use Mtmd\Ga4\Tests\Support\FakeHttp;
-use Mtmd\Ga4\Tests\Support\TestKey;
-use Mtmd\Ga4\TokenSource;
+use Coder999\Ga4\Admin;
+use Coder999\Ga4\Cache\ArrayCache;
+use Coder999\Ga4\ServiceAccount;
+use Coder999\Ga4\Tests\Support\FakeHttp;
+use Coder999\Ga4\Tests\Support\TestKey;
+use Coder999\Ga4\TokenSource;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 

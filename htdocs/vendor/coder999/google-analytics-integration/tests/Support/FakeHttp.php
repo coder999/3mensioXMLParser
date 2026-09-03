@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Mtmd\Ga4\Tests\Support;
+namespace Coder999\Ga4\Tests\Support;
 
-use Mtmd\Ga4\HttpInterface;
+use Coder999\Ga4\HttpInterface;
 use RuntimeException;
 
 final class FakeHttp implements HttpInterface

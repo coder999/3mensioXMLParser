@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mtmd\Ga4\Cache;
+namespace Coder999\Ga4\Cache;
 
 use InvalidArgumentException;
-use Mtmd\Ga4\CacheInterface;
+use Coder999\Ga4\CacheInterface;
 use RuntimeException;
 
 /**

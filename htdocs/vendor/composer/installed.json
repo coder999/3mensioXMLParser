@@ -2,17 +2,17 @@
     "packages": [
         {
             "name": "coder999/google-analytics-integration",
-            "version": "v0.1.0",
-            "version_normalized": "0.1.0.0",
+            "version": "v0.2.0",
+            "version_normalized": "0.2.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/coder999/google-analytics-integration.git",
-                "reference": "b1048a66a55ca14b0a2a9fb8d679a0c0d9c2df99"
+                "reference": "555beb7e2268803939ab3566b5ae019a374d71b3"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/coder999/google-analytics-integration/zipball/b1048a66a55ca14b0a2a9fb8d679a0c0d9c2df99",
-                "reference": "b1048a66a55ca14b0a2a9fb8d679a0c0d9c2df99",
+                "url": "https://api.github.com/repos/coder999/google-analytics-integration/zipball/555beb7e2268803939ab3566b5ae019a374d71b3",
+                "reference": "555beb7e2268803939ab3566b5ae019a374d71b3",
                 "shasum": ""
             },
             "require": {
@@ -24,7 +24,7 @@
             "require-dev": {
                 "phpunit/phpunit": "^10.5"
             },
-            "time": "2026-09-02T16:27:33+00:00",
+            "time": "2026-09-03T00:14:43+00:00",
             "bin": [
                 "bin/ga-provision"
             ],
@@ -32,12 +32,12 @@
             "installation-source": "dist",
             "autoload": {
                 "psr-4": {
-                    "Mtmd\\Ga4\\": "src/"
+                    "Coder999\\Ga4\\": "src/"
                 }
             },
             "autoload-dev": {
                 "psr-4": {
-                    "Mtmd\\Ga4\\Tests\\": "tests/"
+                    "Coder999\\Ga4\\Tests\\": "tests/"
                 }
             },
             "license": [
@@ -45,7 +45,7 @@
             ],
             "description": "GA4 Data API reporting client, gtag renderer, and property provisioning CLI. No runtime dependencies, no database.",
             "support": {
-                "source": "https://github.com/coder999/google-analytics-integration/tree/v0.1.0",
+                "source": "https://github.com/coder999/google-analytics-integration/tree/v0.2.0",
                 "issues": "https://github.com/coder999/google-analytics-integration/issues"
             },
             "install-path": "../coder999/google-analytics-integration"

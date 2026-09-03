@@ -15,12 +15,12 @@
     "bin": ["bin/ga-provision"],
     "autoload": {
         "psr-4": {
-            "Mtmd\\Ga4\\": "src/"
+            "Coder999\\Ga4\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "Mtmd\\Ga4\\Tests\\": "tests/"
+            "Coder999\\Ga4\\Tests\\": "tests/"
         }
     }
 }

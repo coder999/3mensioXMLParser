@@ -18,13 +18,13 @@ declare(strict_types=1);
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
-use Mtmd\Ga4\Cache\FileCache;
-use Mtmd\Ga4\Client;
-use Mtmd\Ga4\Credentials;
-use Mtmd\Ga4\Dashboard;
-use Mtmd\Ga4\Http\CurlHttp;
-use Mtmd\Ga4\ServiceAccount;
-use Mtmd\Ga4\TokenSource;
+use Coder999\Ga4\Cache\FileCache;
+use Coder999\Ga4\Client;
+use Coder999\Ga4\Credentials;
+use Coder999\Ga4\Dashboard;
+use Coder999\Ga4\Http\CurlHttp;
+use Coder999\Ga4\ServiceAccount;
+use Coder999\Ga4\TokenSource;
 
 function ga_service_account_json(): string
 {

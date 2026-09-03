@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Mtmd\Ga4\Tests;
+namespace Coder999\Ga4\Tests;
 
-use Mtmd\Ga4\Cache\ArrayCache;
-use Mtmd\Ga4\Cache\FileCache;
+use Coder999\Ga4\Cache\ArrayCache;
+use Coder999\Ga4\Cache\FileCache;
 use PHPUnit\Framework\TestCase;
 
 final class CacheTest extends TestCase
