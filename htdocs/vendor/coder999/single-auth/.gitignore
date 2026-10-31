@@ -1,5 +1,0 @@
-.superpowers/
-/vendor/
-composer.lock
-.phpunit.result.cache
-.claude/worktrees/
