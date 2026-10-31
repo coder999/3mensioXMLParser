@@ -8,6 +8,13 @@ Entries before 1.1 were reconstructed from the git log after the fact, so they
 cover user-visible behaviour only — for infrastructure and deployment history,
 read `git log`.
 
+## [Unreleased]
+
+### Removed
+
+- The admin section and its login. Its Google Analytics dashboard is now part
+  of the fleet admin panel at admin.marktuttle.dev.
+
 ## [1.1] - 2026-08-29
 
 ### Added

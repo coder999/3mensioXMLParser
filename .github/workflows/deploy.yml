@@ -21,91 +21,17 @@ jobs:
           chmod 600 "$HOME/.ssh/deploy_key"
           ssh-keyscan vps-4b80346f.vps.ovh.us >> "$HOME/.ssh/known_hosts"
 
-      - name: Render identity secrets file
-        shell: bash
-        env:
-          SINGLE_AUTH_DB_HOST: ${{ secrets.VPS_SINGLE_AUTH_DB_HOST }}
-          SINGLE_AUTH_DB_PORT: ${{ secrets.VPS_SINGLE_AUTH_DB_PORT }}
-          SINGLE_AUTH_DB_NAME: ${{ secrets.VPS_SINGLE_AUTH_DB_NAME }}
-          SINGLE_AUTH_DB_USER: ${{ secrets.VPS_SINGLE_AUTH_DB_USER }}
-          SINGLE_AUTH_DB_PASS: ${{ secrets.VPS_SINGLE_AUTH_DB_PASS }}
-          SINGLE_AUTH_CA_CERT: ${{ secrets.SINGLE_AUTH_CA_CERT }}
-        run: |
-          set -euo pipefail
-          # GA4_PROPERTY_ID / GA_SERVICE_ACCOUNT_JSON and the
-          # ga-config.php.template render used to happen here too (GitHub
-          # secrets rendered to secrets/ga-config.php at deploy time). GA4
-          # migration Task 3 replaced that whole mechanism: GA4_PROPERTY_ID
-          # is now a `vars.*` value rendered into .env below, and the
-          # credential itself is the fleet-wide reader.json bind-mounted
-          # read-only from /etc/secrets/ga on the VPS (compose.yml) --
-          # never a per-repo secret at all, so there is nothing left to
-          # render for GA here.
-          : "${SINGLE_AUTH_DB_HOST:?}" "${SINGLE_AUTH_DB_PORT:?}" "${SINGLE_AUTH_DB_NAME:?}" "${SINGLE_AUTH_DB_USER:?}" "${SINGLE_AUTH_DB_PASS:?}" "${SINGLE_AUTH_CA_CERT:?}"
-          command -v envsubst >/dev/null || (sudo apt-get update && sudo apt-get install -y gettext-base)
-          mkdir -p /tmp/mensioxml-secrets
-
-          SINGLE_AUTH_DB_HOST_B64="$(printf '%s' "$SINGLE_AUTH_DB_HOST" | base64 -w0)"
-          SINGLE_AUTH_DB_PORT_B64="$(printf '%s' "$SINGLE_AUTH_DB_PORT" | base64 -w0)"
-          SINGLE_AUTH_DB_NAME_B64="$(printf '%s' "$SINGLE_AUTH_DB_NAME" | base64 -w0)"
-          SINGLE_AUTH_DB_USER_B64="$(printf '%s' "$SINGLE_AUTH_DB_USER" | base64 -w0)"
-          SINGLE_AUTH_DB_PASS_B64="$(printf '%s' "$SINGLE_AUTH_DB_PASS" | base64 -w0)"
-          export SINGLE_AUTH_DB_HOST_B64 SINGLE_AUTH_DB_PORT_B64 SINGLE_AUTH_DB_NAME_B64
-          export SINGLE_AUTH_DB_USER_B64 SINGLE_AUTH_DB_PASS_B64
-          envsubst '$SINGLE_AUTH_DB_HOST_B64 $SINGLE_AUTH_DB_PORT_B64 $SINGLE_AUTH_DB_NAME_B64 $SINGLE_AUTH_DB_USER_B64 $SINGLE_AUTH_DB_PASS_B64' \
-            < deploy/secrets/identity-db-config.php.template > /tmp/mensioxml-secrets/identity-db-config.php
-
-          printf '%s\n' "$SINGLE_AUTH_CA_CERT" > /tmp/mensioxml-secrets/single-auth-ca.pem
-
-      - name: Ship secrets via rsync
-        shell: bash
-        run: |
-          set -euo pipefail
-          # Plain rsync -- NOT sftp+chmod 600. See this plan's Global
-          # Constraints: mensioxml-deploy and the phpfpm container's
-          # www-data (uid 82) are different users, so a 600 file owned by
-          # mensioxml-deploy would be unreadable by the app.
-          #
-          # --chmod=D2750,F640 (tightened from the original default 644,
-          # final review Finding 6): world-readable was broader than
-          # needed -- 640 + group 82 (www-data inside vps-phpfpm:8.4, see
-          # sites/mensioxml's ownership setup) still lets the app read
-          # these while no longer exposing them to every local account on
-          # the host. D2750 (not just a one-time `chmod g+s` on the VPS)
-          # is deliberate: plain `-a` also preserves the *directory's*
-          # mode from this rsync's own source side (/tmp/mensioxml-secrets,
-          # plain 755, no setgid) on every run, which was found to
-          # silently strip a hand-set setgid bit back off app/secrets/ on
-          # the very next deploy. Forcing D2750 here makes the setgid bit
-          # self-healing every run instead of a one-time VPS-side change
-          # that the next deploy would quietly undo.
-          rsync -avz --delete --chmod=D2750,F640 \
-            -e "ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes" \
-            /tmp/mensioxml-secrets/ \
-            mensioxml-deploy@vps-4b80346f.vps.ovh.us:secrets/
-
       - name: Render .env and ship it
         id: putenv
         shell: bash
-        env:
-          GA4_MEASUREMENT_ID: "${{ vars.GA4_MEASUREMENT_ID }}"
-          GA4_PROPERTY_ID: "${{ vars.GA4_PROPERTY_ID }}"
         run: |
           set -euo pipefail
-          # This site has no database -- unlike diaslab's version of this
-          # step, there is no DB_*/MYSQL_*/SMTP_* content to render here,
-          # only the GA4 keys (GA4 migration Task 3). GA4_MEASUREMENT_ID
-          # and GA4_PROPERTY_ID are GitHub *variables*, not secrets --
-          # deliberately, they aren't sensitive. GA_SERVICE_ACCOUNT_FILE is
-          # a fixed path, not a credential -- it points at the fleet-wide
-          # reader.json bind-mounted read-only from /etc/secrets/ga on the
-          # VPS (see compose.yml); nothing here ever holds the credential
-          # itself.
+          # This site is static plus healthz.php: no database, no login, and
+          # since its /admin pages moved to admin.marktuttle.dev (2026-10-31)
+          # nothing reads GA settings at runtime either. The homepage's gtag
+          # snippet is hardcoded in index.html. .env carries APP_ENV only.
           cat > /tmp/deploy.env <<EOF
           APP_ENV=production
-          GA4_MEASUREMENT_ID=${GA4_MEASUREMENT_ID}
-          GA4_PROPERTY_ID=${GA4_PROPERTY_ID}
-          GA_SERVICE_ACCOUNT_FILE=/var/www/ga-secrets/reader.json
           EOF
           ssh -i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes \
             mensioxml-deploy@vps-4b80346f.vps.ovh.us put-env < /tmp/deploy.env | tee /tmp/put-env.out
@@ -123,9 +49,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # local.marker must never land here -- see Global Constraints.
           rsync -avz --delete \
-            --exclude 'admin/local.marker' \
             -e "ssh -i $HOME/.ssh/deploy_key -o IdentitiesOnly=yes" \
             htdocs/ \
             mensioxml-deploy@vps-4b80346f.vps.ovh.us:htdocs/
@@ -152,11 +76,8 @@ jobs:
           # reloads nginx. `docker restart` would NOT fix this: it reuses
           # the same container and therefore the same frozen environment.
           #
-          # This site has no database and no session store of its own --
-          # single-auth sessions live in single_auth.sessions via
-          # DbSessionHandler (see identity_config.php/auth.php), not on
-          # this container's filesystem, so a recreate does not log anyone
-          # out. Cost is a few seconds of 502.
+          # This site has no database and no sessions, so a recreate loses
+          # nothing. Cost is a few seconds of 502.
           ssh -i "$HOME/.ssh/deploy_key" -o IdentitiesOnly=yes \
             mensioxml-deploy@vps-4b80346f.vps.ovh.us redeploy
 
